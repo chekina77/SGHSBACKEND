@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,7 +41,17 @@ public class Utilisateur implements UserDetails {
     @Enumerated(EnumType.STRING)
     private TypeDeRole role;
 
-    public Utilisateur() {}
+    // Nouveaux champs pour la gestion des mots de passe temporaires
+    @Column(name = "mot_de_passe_temporaire")
+    private boolean motDePasseTemporaire = false;
+
+    @Column(name = "date_creation_mot_de_passe")
+    private Instant dateCreationMotDePasse;
+
+    public Utilisateur() {
+        // Initialiser la date de création du mot de passe à l'instant présent
+        this.dateCreationMotDePasse = Instant.now();
+    }
 
     public Utilisateur(Long id, String mdp, String nom, String email, String telephone, String cni, String verificationCode, boolean actif, TypeDeRole role) {
         this.id = id;
@@ -52,6 +63,7 @@ public class Utilisateur implements UserDetails {
         this.verificationCode = verificationCode;  // Initialisation du code de vérification
         this.actif = actif;
         this.role = role;
+        this.dateCreationMotDePasse = Instant.now();
     }
 
     // Getters et setters
@@ -59,9 +71,17 @@ public class Utilisateur implements UserDetails {
     public void setId(Long id) { this.id = id; }
 
     public String getMdp() { return mdp; }
+
     public void setMdp(String mdp) {
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        this.mdp = encoder.encode(mdp);
+        // On vérifie si le mot de passe est déjà encodé pour éviter le double encodage
+        if (mdp != null && !mdp.startsWith("$2a$")) {
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+            this.mdp = encoder.encode(mdp);
+        } else {
+            this.mdp = mdp;
+        }
+        // Mettre à jour la date de création du mot de passe
+        this.dateCreationMotDePasse = Instant.now();
     }
 
     public String getNom() { return nom; }
@@ -85,6 +105,23 @@ public class Utilisateur implements UserDetails {
     public TypeDeRole getRole() { return role; }
     public void setRole(TypeDeRole role) { this.role = role; }
 
+    // Getters et setters pour les nouveaux champs
+    public boolean isMotDePasseTemporaire() {
+        return motDePasseTemporaire;
+    }
+
+    public void setMotDePasseTemporaire(boolean motDePasseTemporaire) {
+        this.motDePasseTemporaire = motDePasseTemporaire;
+    }
+
+    public Instant getDateCreationMotDePasse() {
+        return dateCreationMotDePasse;
+    }
+
+    public void setDateCreationMotDePasse(Instant dateCreationMotDePasse) {
+        this.dateCreationMotDePasse = dateCreationMotDePasse;
+    }
+
     // Implémentation UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -100,13 +137,17 @@ public class Utilisateur implements UserDetails {
     public String getUsername() { return this.email; }
 
     @Override
-    public boolean isAccountNonExpired() { return this.actif; }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() { return this.actif; }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() { return this.actif; }
+    public boolean isCredentialsNonExpired() {
+        // On pourrait utiliser dateCreationMotDePasse pour vérifier si les credentials sont expirés
+        // Pour l'instant, on retourne toujours true et on gère l'expiration dans le service
+        return true;
+    }
 
     @Override
     public boolean isEnabled() { return this.actif; }

@@ -1,5 +1,6 @@
 package com.example.SGHS4.entite;
 
+import com.example.SGHS4.enums.TypeValidation;
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -23,6 +24,19 @@ public class Validation {
     @Column(nullable = false, unique = true)
     private String code;
 
+    /**
+     * Indique si le code est actif (non utilisé et non expiré)
+     */
+    @Column(nullable = false)
+    private boolean actif = true;
+
+    /**
+     * Type de validation (activation, réinitialisation de mot de passe, etc.)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TypeValidation type = TypeValidation.ACTIVATION;
+
     @OneToOne
     @JoinColumn(name = "utilisateur_id", nullable = false)
     private Utilisateur utilisateur;
@@ -31,12 +45,15 @@ public class Validation {
     public Validation() {}
 
     // Constructeur avec paramètres
-    public Validation(int id, Instant creation, Instant expiration, Instant activation, String code, Utilisateur utilisateur) {
+    public Validation(int id, Instant creation, Instant expiration, Instant activation, String code,
+                      boolean actif, TypeValidation type, Utilisateur utilisateur) {
         this.id = id;
         this.creation = creation;
         this.expiration = expiration;
         this.activation = activation;
         this.code = code;
+        this.actif = actif;
+        this.type = type;
         this.utilisateur = utilisateur;
     }
 
@@ -81,6 +98,22 @@ public class Validation {
         this.code = code;
     }
 
+    public boolean isActif() {
+        return actif;
+    }
+
+    public void setActif(boolean actif) {
+        this.actif = actif;
+    }
+
+    public TypeValidation getType() {
+        return type;
+    }
+
+    public void setType(TypeValidation type) {
+        this.type = type;
+    }
+
     public Utilisateur getUtilisateur() {
         return utilisateur;
     }
@@ -88,4 +121,13 @@ public class Validation {
     public void setUtilisateur(Utilisateur utilisateur) {
         this.utilisateur = utilisateur;
     }
+
+    /**
+     * Vérifie si le code est expiré
+     * @return vrai si le code est expiré
+     */
+    public boolean isExpired() {
+        return Instant.now().isAfter(this.expiration);
+    }
+
 }

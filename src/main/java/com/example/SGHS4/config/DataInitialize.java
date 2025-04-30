@@ -45,13 +45,16 @@ public class DataInitialize {
 
     @PostConstruct
     public void initAdmin() {
+        // First, ensure the ADMINISTRATEUR role exists
+        Role adminRole = roleRepository.findByLibelle(TypeDeRole.ADMINISTRATEUR)
+                .orElseGet(() -> {
+                    Role newRole = new Role();
+                    newRole.setLibelle(TypeDeRole.ADMINISTRATEUR);
+                    return roleRepository.save(newRole);
+                });
+
+        // Then create the admin user if it doesn't exist
         if (utilisateurRepository.findByEmail(email).isEmpty()) {
-            Optional<Role> roleOpt = roleRepository.findByLibelle(TypeDeRole.ADMINISTRATEUR);
-
-            if (roleOpt.isEmpty()) {
-                throw new RuntimeException("Rôle ADMIN manquant.");
-            }
-
             Utilisateur admin = new Utilisateur();
             admin.setEmail(email);
             admin.setNom(nom);

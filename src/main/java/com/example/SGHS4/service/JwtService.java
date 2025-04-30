@@ -3,11 +3,16 @@ package com.example.SGHS4.service;
 import com.example.SGHS4.entite.Jwt;
 import com.example.SGHS4.entite.RefreshToken;
 import com.example.SGHS4.entite.Utilisateur;
+import com.example.SGHS4.exceptions.TokenExpireException;
+import com.example.SGHS4.exceptions.TokenInvalideException;
 import com.example.SGHS4.repository.JwtRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,11 +27,20 @@ import java.util.stream.Collectors;
 @Service
 public class JwtService {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
+
     public static final String BEARER = "bearer";
     public static final String REFRESH = "refresh";
     private static final String TOKEN_INVALIDE = "Token invalide";
 
-    private static final String ENCRYPTION_KEY = "YWJmYjNmNjhlNmM2MWRkZmYyMGI0YjA2MTZmMGQ5MTcxZjc1MDNiNTFlN2FkODE3MjUwYzJmMGQzOThjZjk5NQ==";
+    @Value("${jwt.encryption.key}")
+    private String encryptionKey;
+
+    @Value("${jwt.expiration.bearer:3600000}") // 1 heure par défaut
+    private long bearerExpirationMs;
+
+    @Value("${jwt.expiration.refresh:1800000}") // 30 minutes par défaut
+    private long refreshExpirationMs;
 
     private final UtilisateurService utilisateurService;
     private final JwtRepository jwtRepository;
@@ -41,12 +55,18 @@ public class JwtService {
                 value,
                 false,
                 false
-        ).orElseThrow(() -> new RuntimeException("Token invalide ou inconnu"));
+        ).orElseThrow(() -> new TokenInvalideException("Token invalide ou inconnu"));
     }
 
     // Générez les tokens JWT et Refresh Token
     public Map<String, String> generate(String username) {
         Utilisateur utilisateur = (Utilisateur) this.utilisateurService.loadUserByUsername(username);
+
+        // Vérifier si l'utilisateur est actif
+        if (!utilisateur.isEnabled()) {
+            throw new RuntimeException("Compte utilisateur inactif");
+        }
+
         this.disableTokens(utilisateur);  // Désactive les anciens tokens
 
         final Map<String, String> jwtMap = new HashMap<>(this.generateJwt(utilisateur));
@@ -56,7 +76,7 @@ public class JwtService {
         refreshToken.setValeur(UUID.randomUUID().toString());
         refreshToken.setExpire(false);
         refreshToken.setCreation(Instant.now());
-        refreshToken.setExpiration(Instant.now().plusMillis(30 * 60 * 1000));  // Expire après 30 minutes
+        refreshToken.setExpiration(Instant.now().plusMillis(refreshExpirationMs));
 
         // Créer un Jwt avec un lien vers le Refresh Token
         Jwt jwt = new Jwt();
@@ -88,13 +108,25 @@ public class JwtService {
 
     // Extraire le nom d'utilisateur à partir du token
     public String extractUsername(String token) {
-        return this.getClaim(token, Claims::getSubject);
+        try {
+            return this.getClaim(token, Claims::getSubject);
+        } catch (ExpiredJwtException e) {
+            throw new TokenExpireException("Le token JWT est expiré");
+        } catch (JwtException e) {
+            throw new TokenInvalideException("Le token JWT est invalide");
+        }
     }
 
     // Vérifier si le token est expiré
     public boolean isTokenExpired(String token) {
-        Date expirationDate = getExpirationDateFromToken(token);
-        return expirationDate.before(new Date());
+        try {
+            Date expirationDate = getExpirationDateFromToken(token);
+            return expirationDate.before(new Date());
+        } catch (ExpiredJwtException e) {
+            return true;
+        } catch (JwtException e) {
+            throw new TokenInvalideException("Le token JWT est invalide");
+        }
     }
 
     private Date getExpirationDateFromToken(String token) {
@@ -107,35 +139,38 @@ public class JwtService {
     }
 
     private Claims getAllClaims(String token) {
-        return Jwts.parser()
-                .setSigningKey(this.getKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parser()
+                    .setSigningKey(this.getKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (JwtException e) {
+            logger.error("Erreur lors de l'analyse du JWT", e);
+            throw e;
+        }
     }
 
     // Générer le JWT
-    // Générer le JWT
     Map<String, String> generateJwt(Utilisateur utilisateur) {
         final long currentTime = System.currentTimeMillis();
-        final long expirationTime = currentTime + 60 * 60 * 1000;  // 1 heure
+        final long expirationTime = currentTime + bearerExpirationMs;
 
         // Récupérer les rôles de l'utilisateur
         List<String> roles = utilisateur.getAuthorities().stream()
-                .map(grantedAuthority -> grantedAuthority.getAuthority()) // Récupère le rôle
+                .map(grantedAuthority -> grantedAuthority.getAuthority())
                 .collect(Collectors.toList());
 
         // Ajouter les roles dans les claims
         final Map<String, Object> claims = new HashMap<>();
         claims.put("nom", utilisateur.getNom());
-        claims.put("roles", roles);  // Ajouter le rôle dans les claims
+        claims.put("roles", roles);
         claims.put(Claims.EXPIRATION, new Date(expirationTime));
         claims.put(Claims.SUBJECT, utilisateur.getEmail());
+        claims.put(Claims.ISSUED_AT, new Date(currentTime));
 
+        // Générer le token JWT
         final String bearer = Jwts.builder()
-                .setIssuedAt(new Date(currentTime))
-                .setExpiration(new Date(expirationTime))
-                .setSubject(utilisateur.getEmail())
                 .setClaims(claims)
                 .signWith(getKey(), SignatureAlgorithm.HS256)
                 .compact();
@@ -143,41 +178,63 @@ public class JwtService {
         return Map.of(BEARER, bearer);
     }
 
-
     private Key getKey() {
-        final byte[] decoder = Decoders.BASE64.decode(ENCRYPTION_KEY);
+        final byte[] decoder = Decoders.BASE64.decode(encryptionKey);
         return Keys.hmacShaKeyFor(decoder);
     }
 
     // Déconnexion et désactivation du token
     public void deconnexion() {
-        Utilisateur utilisateur = (Utilisateur) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Jwt jwt = this.jwtRepository.findUtilisateurValidToken(
-                utilisateur.getEmail(),
-                false,
-                false
-        ).orElseThrow(() -> new RuntimeException(TOKEN_INVALIDE));
-        jwt.setExpire(true);
-        jwt.setDesactive(true);
-        this.jwtRepository.save(jwt);
+        try {
+            Utilisateur utilisateur = (Utilisateur) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            Jwt jwt = this.jwtRepository.findUtilisateurValidToken(
+                    utilisateur.getEmail(),
+                    false,
+                    false
+            ).orElseThrow(() -> new TokenInvalideException(TOKEN_INVALIDE));
+
+            jwt.setExpire(true);
+            jwt.setDesactive(true);
+            this.jwtRepository.save(jwt);
+
+            // Effacer le contexte de sécurité
+            SecurityContextHolder.clearContext();
+        } catch (Exception e) {
+            logger.error("Erreur lors de la déconnexion", e);
+            throw new RuntimeException("Erreur lors de la déconnexion: " + e.getMessage());
+        }
     }
 
     // Suppression des tokens expirés ou inutiles
-    @Scheduled(cron = "@daily")
+    @Scheduled(cron = "${jwt.cleanup.cron:0 0 0 * * ?}") // Par défaut: tous les jours à minuit
     public void removeUselessJwt() {
-        System.out.println("Suppression des token " + Instant.now());
-        this.jwtRepository.deleteAllByExpireAndDesactive(true, true);
+        logger.info("Suppression des tokens expirés " + Instant.now());
+        try {
+            long count = this.jwtRepository.deleteAllByExpireAndDesactive(true, true);
+            logger.info("{} tokens supprimés", count);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la suppression des tokens expirés", e);
+        }
     }
 
     // Rafraîchir le token
     public Map<String, String> refreshToken(Map<String, String> refreshTokenRequest) {
-        final Jwt jwt = this.jwtRepository.findByRefreshToken(refreshTokenRequest.get(REFRESH))
-                .orElseThrow(() -> new RuntimeException(TOKEN_INVALIDE));
-
-        if(jwt.getRefreshToken().isExpire() || jwt.getRefreshToken().getExpiration().isBefore(Instant.now())) {
-            throw new RuntimeException(TOKEN_INVALIDE);
+        if (!refreshTokenRequest.containsKey(REFRESH)) {
+            throw new TokenInvalideException("Refresh token manquant");
         }
+
+        final Jwt jwt = this.jwtRepository.findByRefreshToken(refreshTokenRequest.get(REFRESH))
+                .orElseThrow(() -> new TokenInvalideException(TOKEN_INVALIDE));
+
+        // Vérifier que le refresh token est valide
+        if (jwt.getRefreshToken().isExpire() || jwt.getRefreshToken().getExpiration().isBefore(Instant.now())) {
+            throw new TokenInvalideException("Refresh token expiré, veuillez vous reconnecter");
+        }
+
+        // Désactiver les anciens tokens
         this.disableTokens(jwt.getUtilisateur());
+
+        // Générer un nouveau jeu de tokens
         return this.generate(jwt.getUtilisateur().getEmail());
     }
 }

@@ -1,8 +1,11 @@
 package com.example.SGHS4.securiter;
 
 import com.example.SGHS4.entite.Jwt;
+
+import com.example.SGHS4.exceptions.TokenInvalideException;
 import com.example.SGHS4.service.JwtService;
 import com.example.SGHS4.service.UtilisateurService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,73 +17,106 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
+import java.util.Arrays;
 
-@Component // Permet à Spring de gérer cette classe comme un bean
+@Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private final UtilisateurService utilisateurService;
     private final JwtService jwtService;
 
-    // Constructeur pour l'injection des dépendances
+    @Value("${security.public-paths}")
+    private String[] publicPathsArray;
+
+    private List<String> publicPaths;
+
     public JwtFilter(UtilisateurService utilisateurService, JwtService jwtService) {
         this.utilisateurService = utilisateurService;
         this.jwtService = jwtService;
     }
 
     @Override
+    protected void initFilterBean() {
+        this.publicPaths = Arrays.asList(publicPathsArray);
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Vérifier si la requête est pour un des chemins d'authentification (connexion, inscription, etc.)
         String path = request.getServletPath();
-        if (path.equals("/connexion") ||
-                path.equals("/inscription") ||
-                path.equals("/activation") ||
-                path.equals("/refresh-token") ||
-                path.startsWith("/admin/pending-personnel") ||
-                path.equals("/admin/complete-registration") ||
-                path.equals("/enregistrements/enregistrer") ||
-                path.equals("/enregistrements/allenregistrer") ||
 
-
-                path.equals("/admin/connexion")) {
-
+        // Vérifier si le chemin est public
+        if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
-            return; // Autoriser ces chemins sans vérifier le JWT
+            return;
         }
-
 
         // Récupérer le header "Authorization" de la requête
         String authorization = request.getHeader("Authorization");
-        String token = null;
-        String username = null;
-        Jwt tokenDansLaBDD = null;
-        boolean isTokenExpired = true;
 
-        // Si un token est présent dans le header "Authorization", extraire le token et son nom d'utilisateur
-        if (authorization != null && authorization.startsWith("Bearer ")) {
-            token = authorization.substring(7); // Extraire le token après "Bearer "
-            username = jwtService.extractUsername(token); // Extraire le nom d'utilisateur du token
-            tokenDansLaBDD = jwtService.tokenByValue(token); // Vérifier si le token est valide dans la base de données
-            isTokenExpired = jwtService.isTokenExpired(token); // Vérifier si le token est expiré
+        // Si aucun token n'est présent, on continue la chaîne de filtres
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        // Si toutes les conditions sont remplies (token valide, non expiré, utilisateur existant)
-        if (token != null &&
-                username != null &&
-                tokenDansLaBDD != null &&
-                !isTokenExpired &&
-                tokenDansLaBDD.getUtilisateur().getEmail().equals(username) &&
-                SecurityContextHolder.getContext().getAuthentication() == null) {
+        try {
+            // Extraire et valider le token
+            String token = authorization.substring(7);
+            processToken(token);
 
+            // Passer la requête au filtre suivant
+            filterChain.doFilter(request, response);
+        } catch (TokenInvalideException e) {
+            // En cas d'erreur de token, on renvoie une erreur 401
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write(e.getMessage());
+            response.getWriter().flush();
+        }
+    }
+
+    private void processToken(String token) {
+        // Extraire les informations du token
+        String username = jwtService.extractUsername(token);
+        Jwt tokenDansLaBDD = jwtService.tokenByValue(token);
+        boolean isTokenExpired = jwtService.isTokenExpired(token);
+
+        // Valider le token
+        if (token == null ||
+                username == null ||
+                tokenDansLaBDD == null ||
+                isTokenExpired ||
+                !tokenDansLaBDD.getUtilisateur().getEmail().equals(username)) {
+
+            throw new TokenInvalideException("Token invalide ou expiré");
+        }
+
+        // Si l'utilisateur n'est pas encore authentifié dans ce contexte
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
             // Charger les détails de l'utilisateur et authentifier la requête
             UserDetails userDetails = utilisateurService.loadUserByUsername(username);
+
+            // Vérifier si l'utilisateur est actif
+            if (!userDetails.isEnabled()) {
+                throw new TokenInvalideException("Compte utilisateur inactif");
+            }
+
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authToken); // Mettre l'authentification dans le contexte
+            SecurityContextHolder.getContext().setAuthentication(authToken);
         }
+    }
 
-        // Passer la requête au filtre suivant
-        filterChain.doFilter(request, response);
+    private boolean isPublicPath(String path) {
+        return publicPaths.stream()
+                .anyMatch(pattern -> {
+                    if (pattern.endsWith("/**")) {
+                        String basePath = pattern.substring(0, pattern.length() - 3);
+                        return path.startsWith(basePath);
+                    }
+                    return path.equals(pattern);
+                });
     }
 }
