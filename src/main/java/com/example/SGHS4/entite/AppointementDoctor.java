@@ -1,17 +1,20 @@
 package com.example.SGHS4.entite;
 
 import jakarta.persistence.*;
-
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "AppointementDoctors")
 public class AppointementDoctor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name;
-    private Date date;
+
+    @ManyToOne
+    @JoinColumn(name = "patient_id")
+    private Patient patient;
+
+    private LocalDateTime date;
+    private Long doctorId;
 
     public Long getId() {
         return id;
@@ -21,20 +24,30 @@ public class AppointementDoctor {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public Patient getPatient() {
+        return patient;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setPatient(Patient patient) {
+        this.patient = patient;
     }
 
-    public Date getDate() {
+    public LocalDateTime getDate() {
         return date;
     }
 
-    public void setDate(Date date) {
+    public void setDate(LocalDateTime date) {
         this.date = date;
     }
-}
 
+    public Long getDoctorId() {
+        return doctorId;
+    }
+
+    public void setDoctorId(Long doctorId) {
+        this.doctorId = doctorId;
+    }
+
+    // Getters et Setters
+    // ... (ajoutez tous les getters et setters)
+}

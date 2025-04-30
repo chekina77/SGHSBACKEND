@@ -1,16 +1,24 @@
 package com.example.SGHS4.entite;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "Patients")
 public class Patient {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
-    private int age;
-    private String phoneNumber;
+    private String surname;
+    private String sexe;
+    private LocalDate dateofbirth;
+    private double weight;
+    private double height;
+    private String email;
+    private String nationalIDcardnumber;
+    private String comment;
+    private LocalDate dateoftoday;
 
     public Long getId() {
         return id;
@@ -28,19 +36,78 @@ public class Patient {
         this.name = name;
     }
 
-    public int getAge() {
-        return age;
+    public String getSurname() {
+        return surname;
     }
 
-    public void setAge(int age) {
-        this.age = age;
+    public void setSurname(String surname) {
+        this.surname = surname;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public String getSexe() {
+        return sexe;
     }
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setSexe(String sexe) {
+        this.sexe = sexe;
     }
+
+    public LocalDate getDateofbirth() {
+        return dateofbirth;
+    }
+
+    public void setDateofbirth(LocalDate dateofbirth) {
+        this.dateofbirth = dateofbirth;
+    }
+
+    public double getWeight() {
+        return weight;
+    }
+
+    public void setWeight(double weight) {
+        this.weight = weight;
+    }
+
+    public double getHeight() {
+        return height;
+    }
+
+    public void setHeight(double height) {
+        this.height = height;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getNationalIDcardnumber() {
+        return nationalIDcardnumber;
+    }
+
+    public void setNationalIDcardnumber(String nationalIDcardnumber) {
+        this.nationalIDcardnumber = nationalIDcardnumber;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
+    public LocalDate getDateoftoday() {
+        return dateoftoday;
+    }
+
+    public void setDateoftoday(LocalDate dateoftoday) {
+        this.dateoftoday = dateoftoday;
+    }
+
+    // Getters et Setters
+    // ... (ajoutez tous les getters et setters pour les champ ci-dessus)
 }

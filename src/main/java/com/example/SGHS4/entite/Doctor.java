@@ -5,11 +5,26 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "Doctors")
 public class Doctor {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
+
     private String specialization;
+
+    private String phoneNumber;
+
+    public Doctor() {
+    }
+
+    public Doctor(Long id, String name, String specialization, String phoneNumber) {
+        this.id = id;
+        this.name = name;
+        this.specialization = specialization;
+        this.phoneNumber = phoneNumber;
+    }
 
     public Long getId() {
         return id;
@@ -42,8 +57,4 @@ public class Doctor {
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
-
-    private String phoneNumber;
-
 }
-

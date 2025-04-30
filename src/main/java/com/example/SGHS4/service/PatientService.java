@@ -1,5 +1,6 @@
 package com.example.SGHS4.service;
 
+import com.example.SGHS4.dto.PatientDTO;
 import com.example.SGHS4.entite.Patient;
 import com.example.SGHS4.repository.PatientRepository;
 import org.springframework.stereotype.Service;
@@ -20,24 +21,31 @@ public class PatientService {
         return patientRepository.findAll();
     }
 
-    public Patient createPatient(Patient patient) {
-        return patientRepository.save(patient);
+    public void createPatient(PatientDTO patientDTO) {
+
+
+            Patient patient = new Patient();
+
+            patient.setName(patientDTO.getName());
+            patient.setSurname(patientDTO.getSurname());
+            patient.setSexe(patientDTO.getSexe());
+            patient.setDateofbirth(patientDTO.getDateofbirth());
+            patient.setWeight(patientDTO.getWeight());
+            patient.setHeight(patientDTO.getHeight());
+            patient.setEmail(patientDTO.getEmail());
+            patient.setNationalIDcardnumber(patientDTO.getNationalIDcardnumber());
+            patient.setComment(patientDTO.getComment());
+            patient.setDateoftoday(patientDTO.getDateoftoday());
+
+            patientRepository.save(patient);
+
+
     }
 
     public Optional<Patient> getPatientById(Long id) {
         return patientRepository.findById(id);
     }
 
-    public Optional<Patient> updatePatient(Long id, Patient patientDetails) {
-        return patientRepository.findById(id).map(existingPatient -> {
-            existingPatient.setName(patientDetails.getName());
-            existingPatient.setAge(patientDetails.getAge());
-            existingPatient.setPhoneNumber(patientDetails.getPhoneNumber());
-            return patientRepository.save(existingPatient);
-        });
-    }
-    public List<Patient> searchPatients(String keyword) {
-        return patientRepository.searchByKeyword(keyword);
-    }
+
 
 }

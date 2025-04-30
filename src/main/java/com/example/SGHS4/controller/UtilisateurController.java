@@ -1,7 +1,7 @@
 package com.example.SGHS4.controller;
 
-import com.example.SGHS4.AuthentificationDTO;
-import com.example.SGHS4.entite.Utilisateur;
+import com.example.SGHS4.dto.PersonnelDTO;
+import com.example.SGHS4.dto.AuthentificationDTO;
 import com.example.SGHS4.service.JwtService;
 import com.example.SGHS4.service.UtilisateurService;
 import org.springframework.http.HttpStatus;
@@ -30,9 +30,9 @@ public class UtilisateurController {
     }
 
     @PostMapping("/inscription")
-    public ResponseEntity<?> inscription(@RequestBody Utilisateur utilisateur) {
+    public ResponseEntity<?> inscription(@RequestBody PersonnelDTO dto) {
         try {
-            utilisateurService.inscription(utilisateur);
+            utilisateurService.inscription(dto);
             return ResponseEntity.status(HttpStatus.CREATED).body("Utilisateur inscrit avec succès.");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur lors de l'inscription : " + e.getMessage());
@@ -48,12 +48,13 @@ public class UtilisateurController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur d'activation : " + e.getMessage());
         }
     }
-    @PostMapping(path = "refresh-token")
+
+    @PostMapping("/refresh-token")
     public @ResponseBody Map<String, String> refreshToken(@RequestBody Map<String, String> refreshTokenRequest) {
         return this.jwtService.refreshToken(refreshTokenRequest);
     }
 
-    @PostMapping(path = "deconnexion")
+    @PostMapping("/deconnexion")
     public void deconnexion() {
         this.jwtService.deconnexion();
     }
@@ -63,11 +64,11 @@ public class UtilisateurController {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            authenticationDTO.username(), authenticationDTO.password()
+                            authenticationDTO.email(), authenticationDTO.password()
                     )
             );
             if (authentication.isAuthenticated()) {
-                Map<String, String> tokenMap = jwtService.generate(authenticationDTO.username());
+                Map<String, String> tokenMap = jwtService.generate(authenticationDTO.email());
                 return ResponseEntity.ok(tokenMap);
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Identifiants incorrects.");
@@ -76,14 +77,4 @@ public class UtilisateurController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Erreur de connexion : " + e.getMessage());
         }
     }
-    @PostMapping("/RegisterUser")
-    public ResponseEntity<?>RegisterUser(@RequestBody Utilisateur utilisateur) {
-        try {
-            utilisateurService.inscription(utilisateur);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Utilisateur inscrit avec succès.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur lors de l'inscription : " + e.getMessage());
-        }
-    }
-
 }

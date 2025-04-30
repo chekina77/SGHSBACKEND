@@ -1,6 +1,6 @@
 package com.example.SGHS4.entite;
 
-import com.example.SGHS4.TypeDeRole;
+import com.example.SGHS4.enums.TypeDeRole;
 import jakarta.persistence.*;
 
 @Entity
@@ -9,26 +9,17 @@ public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-    @Enumerated(EnumType.STRING)
+    private Long id;
 
+    @Enumerated(EnumType.STRING)
     private TypeDeRole libelle;
 
-
-    public Role() {
-    }
-
-    public Role(int id, TypeDeRole libelle) {
-        this.id = id;
-        this.libelle = libelle;
-    }
-
-
-    public int getId() {
+    // Getters et setters
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -36,7 +27,7 @@ public class Role {
         return libelle;
     }
 
-    public void setLibelle(String libelle) {
-        this.libelle =  TypeDeRole.valueOf(libelle);
+    public void setLibelle(TypeDeRole libelle) {
+        this.libelle = libelle;
     }
 }

@@ -21,6 +21,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.GET;
+
 
 @Configuration
 @EnableWebSecurity
@@ -44,12 +46,35 @@ public class ConfigurationSecuriterApplication {
                         .authorizeHttpRequests(
                                 authorize ->
                                         authorize
+
+                                                .requestMatchers(
+                                                        "/v3/api-docs/**",
+                                                        "/swagger-ui/**",
+                                                        "/swagger-ui.html"
+                                                ).permitAll()
                                                 .requestMatchers(POST, "/inscription").permitAll()
                                                 .requestMatchers(POST, "/activation").permitAll()
                                                 .requestMatchers(POST, "/connexion").permitAll()
                                                 .requestMatchers(POST, "/refresh-token").permitAll()
-                                                .requestMatchers(POST, "/enregistrements").permitAll()  // <-- Ajout de cette ligne pour permettre l'accès public à POST /enregistrements
-                                                .requestMatchers(POST, "/RegisterUser").permitAll()
+                                                .requestMatchers(POST, "/admin/complete-registration").permitAll()
+                                                .requestMatchers(GET, "/admin/pending-personnel/**").permitAll()
+                                                .requestMatchers(POST, "/admin/connexion").permitAll()
+                                                .requestMatchers("/enregistrements/enregistrer").permitAll()
+                                                .requestMatchers("/enregistrements/allenregistrer").permitAll() // Permettre l'accès à l'URL sans authentification
+// Permettre l'accès à l'URL sans authentification
+
+
+
+
+
+                                                .requestMatchers(POST, "/enregistrements").permitAll()
+                                                .requestMatchers(POST, "/admin/connexion").permitAll()//
+                                                .requestMatchers("/admin/**").hasRole("ADMIN")
+                                                .requestMatchers("/api/patient/**").hasRole("INFIRMIER")
+
+
+
+
 
 
                                                 .anyRequest().authenticated()
