@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
-public class PersonnelDTO {
+public class PendingPersonnelDTO {
     @NotBlank(message = "Le nom est obligatoire")
     private String nom;
 

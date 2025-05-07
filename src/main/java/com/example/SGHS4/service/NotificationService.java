@@ -17,14 +17,25 @@ public class NotificationService {
     public void envoyer(Validation validation) {
         SimpleMailMessage message = new SimpleMailMessage();
 
-        // message.setFrom("chekinae22@gmail.com");
+        // Déterminer le destinataire (Utilisateur ou PendingPersonnel)
+        String email;
+        String nom;
+        if (validation.getUtilisateur() != null) {
+            email = validation.getUtilisateur().getEmail();
+            nom = validation.getUtilisateur().getNom();
+        } else if (validation.getPendingPersonnel() != null) {
+            email = validation.getPendingPersonnel().getEmail();
+            nom = validation.getPendingPersonnel().getNom();
+        } else {
+            throw new IllegalStateException("Aucun destinataire pour la notification");
+        }
 
-        message.setTo(validation.getUtilisateur().getEmail());
+        message.setTo(email);
         message.setSubject("Votre code d'activation");
 
         String texte = String.format(
                 "Bonjour %s,\n\nVotre code d'activation est : %s.\n\nÀ bientôt.",
-                validation.getUtilisateur().getNom(),
+                nom,
                 validation.getCode()
         );
 

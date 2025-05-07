@@ -2,7 +2,10 @@ package com.example.SGHS4.controller;
 
 import com.example.SGHS4.dto.*;
 import com.example.SGHS4.entite.PendingPersonnel;
+import com.example.SGHS4.dto.RegistrationCompletionDTO;
+
 import com.example.SGHS4.entite.Utilisateur;
+import com.example.SGHS4.exceptions.UtilisateurExisteDejaException;
 import com.example.SGHS4.exceptions.ValidationException;
 import com.example.SGHS4.service.AdminService;
 import com.example.SGHS4.repository.PendingPersonnelRepository;
@@ -50,19 +53,52 @@ public class AdminController {
     /**
      * Enregistre un nouveau membre du personnel
      */
-    @PostMapping("/register-personnel")
-    @Operation(
-            summary = "Enregistrement d'un nouveau personnel",
-            description = "Permet à l'administrateur d'enregistrer un nouveau membre du personnel. Un email avec un code de vérification sera envoyé.",
-            responses = {
-                    @ApiResponse(responseCode = "201", description = "Personnel enregistré avec succès"),
-                    @ApiResponse(responseCode = "400", description = "Données d'enregistrement invalides ou déjà utilisées"),
-                    @ApiResponse(responseCode = "401", description = "Non autorisé")
-            }
-    )
+    @PostMapping("/complete-registration")
+    public ResponseEntity<Map<String, Object>> completeRegistration(@Valid @RequestBody RegistrationCompletionDTO payload) {
+        logger.info("Tentative de finalisation d'inscription pour CNI: {}", payload.getCni());
+
+        try {
+            // Appel du service pour la finalisation d'inscription
+            String result = adminService.verifyAndCompleteRegistration(payload);
+
+            // Création de la réponse de succès
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", result);
+            return ResponseEntity.ok(response);
+
+        } catch (ValidationException e) {
+            // Gestion des erreurs de validation
+            logger.warn("Erreur de validation: {}", e.getMessage());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+
+        } catch (UtilisateurExisteDejaException e) {
+            // Gestion des conflits de données (email ou téléphone déjà utilisé)
+            logger.warn("Conflit: {}", e.getMessage());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+
+        } catch (Exception e) {
+            // Gestion des erreurs internes
+            logger.error("Erreur interne lors de la finalisation de l'inscription", e);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Une erreur interne est survenue.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     @PreAuthorize("hasRole('ADMINISTRATEUR')")
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<RegistrationResponseDTO> registerPersonnel(@Valid @RequestBody PersonnelDTO dto) {
+    public ResponseEntity<RegistrationResponseDTO> registerPersonnel(@Valid @RequestBody PendingPersonnelDTO dto) {
         logger.info("Demande d'enregistrement d'un nouveau personnel: {}", dto.getEmail());
 
         try {
@@ -135,6 +171,7 @@ public class AdminController {
     /**
      * Récupère les informations d'un personnel en attente via sa CNI
      */
+
     @GetMapping("/pending-personnel/{cni}")
     @Operation(
             summary = "Récupération d'un personnel en attente",
@@ -151,75 +188,17 @@ public class AdminController {
         logger.info("Recherche de personnel en attente avec CNI: {}", cni);
 
         return pendingPersonnelRepository.findByCni(cni)
-                .map(personnel -> {
-                    // Sécurité: masquer certaines informations sensibles si nécessaire
-                    personnel.setVerificationCode(null);
-                    return ResponseEntity.ok(personnel);
-                })
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> {
                     logger.warn("Aucun personnel en attente trouvé avec CNI: {}", cni);
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
                 });
     }
 
+
     /**
      * Finalise l'inscription d'un personnel
      */
-    @PostMapping("/complete-registration")
-    @Operation(
-            summary = "Finalisation de l'inscription",
-            description = "Vérifie le code de validation et finalise l'inscription d'un personnel",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Inscription finalisée avec succès"),
-                    @ApiResponse(responseCode = "400", description = "Données de finalisation invalides"),
-                    @ApiResponse(responseCode = "403", description = "Code de vérification incorrect"),
-                    @ApiResponse(responseCode = "404", description = "Personnel non trouvé")
-            }
-    )
-    public ResponseEntity<Map<String, Object>> completeRegistration(@Valid @RequestBody RegistrationCompletionDTO payload) {
-        logger.info("Tentative de finalisation d'inscription pour CNI: {}", payload.cni());
-
-        try {
-            String result = adminService.verifyAndCompleteRegistration(
-                    payload.cni(),
-                    payload.verificationCode(),
-                    payload.password()
-            );
-
-            Map<String, Object> response = new HashMap<>();
-
-            if ("Code de vérification incorrect.".equals(result)) {
-                response.put("success", false);
-                response.put("message", result);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-            } else if ("Personnel non trouvé.".equals(result)) {
-                response.put("success", false);
-                response.put("message", result);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-            } else {
-                response.put("success", true);
-                response.put("message", result);
-                return ResponseEntity.ok(response);
-            }
-
-        } catch (ValidationException e) {
-            logger.warn("Erreur lors de la finalisation d'inscription: {}", e.getMessage());
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", e.getMessage());
-
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        } catch (Exception e) {
-            logger.error("Erreur lors de la finalisation d'inscription", e);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "Une erreur s'est produite. Veuillez réessayer.");
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
 
     /**
      * Liste tous les membres du personnel (actifs et inactifs)
@@ -248,4 +227,5 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
 }

@@ -1,9 +1,6 @@
 package com.example.SGHS4.controller;
 
-import com.example.SGHS4.dto.PersonnelDTO;
-import com.example.SGHS4.dto.AuthentificationDTO;
-import com.example.SGHS4.dto.JwtResponseDTO;
-import com.example.SGHS4.dto.ModificationMdpDTO;
+import com.example.SGHS4.dto.*;
 import com.example.SGHS4.entite.Utilisateur;
 import com.example.SGHS4.exceptions.ValidationException;
 import com.example.SGHS4.service.JwtService;
@@ -22,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,7 +51,7 @@ public class UtilisateurController {
                     @ApiResponse(responseCode = "409", description = "Email, téléphone ou CNI déjà utilisé")
             }
     )
-    public ResponseEntity<?> inscription(@Valid @RequestBody PersonnelDTO dto) {
+    public ResponseEntity<?> inscription(@Valid @RequestBody PendingPersonnelDTO dto) {
         utilisateurService.inscription(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "Utilisateur inscrit avec succès. Veuillez vérifier votre email pour l'activation."));
@@ -150,34 +148,38 @@ public class UtilisateurController {
     /**
      * Modifie le mot de passe de l'utilisateur connecté
      */
-    @PostMapping("/modifier-mot-de-passe")
-    @Operation(
-            summary = "Modification du mot de passe",
-            description = "Permet à un utilisateur connecté de modifier son mot de passe",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Mot de passe modifié avec succès"),
-                    @ApiResponse(responseCode = "400", description = "Données invalides"),
-                    @ApiResponse(responseCode = "401", description = "Non authentifié")
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<?> modifierMotDePasse(@Valid @RequestBody ModificationMdpDTO dto) {
-        try {
-            // Vérifier que les deux nouveaux mots de passe correspondent
-            if (!dto.getNouveauMotDePasse().equals(dto.getConfirmationNouveauMotDePasse())) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("success", false, "message", "Le nouveau mot de passe et sa confirmation ne correspondent pas"));
-            }
+    @PostMapping("/envoyer-code-reinitialisation")
+    public ResponseEntity<?> envoyerCode(@RequestBody DemandeReinitialisationDTO request) {
+        String email = request.getEmail(); // Utilise le getter de l'objet
+        utilisateurService.envoyerCodeReinitialisation(email);
 
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Code envoyé avec succès à " + email);
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    @PostMapping("/modifier-mot-de-passe")
+    public ResponseEntity<?> modifierMotDePasse(@RequestBody @Valid ModificationMdpDTO dto) {
+        try {
             utilisateurService.modifierMotDePasse(dto);
             return ResponseEntity.ok(Map.of("success", true, "message", "Mot de passe modifié avec succès"));
         } catch (ValidationException e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
         } catch (Exception e) {
-
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("success", false, "message", "Une erreur est survenue lors de la modification du mot de passe"));
+                    .body(Map.of("success", false, "message", "Erreur interne"));
         }
     }
+    @PostMapping("/envoyer-nouveau-code")
+    public ResponseEntity<String> envoyerNouveauCode(@RequestBody VerificationCodeDTO emailDTO) {
+        try {
+            utilisateurService.verifierEtEnvoyerNouveauCode(VerificationCodeDTO.getEmail());
+            return ResponseEntity.ok("Nouveau code de réinitialisation envoyé.");
+        } catch (ValidationException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur : " + e.getMessage());
+        }
+    }
+
 }

@@ -62,6 +62,10 @@ public class ConfigurationSecuriterApplication {
                                                 .requestMatchers(POST, "/activation").permitAll()
                                                 .requestMatchers(POST, "/connexion").permitAll()
                                                 .requestMatchers(POST, "/refresh-token").permitAll()
+                                                .requestMatchers(POST, "/complete-registration").permitAll()
+                                                .requestMatchers("/envoyer-nouveau-code", "/modifier-mot-de-passe").permitAll() // <- accès public
+
+
 
                                                 // Admin registration endpoints
                                                 .requestMatchers(POST, "/admin/complete-registration").permitAll()
@@ -74,7 +78,13 @@ public class ConfigurationSecuriterApplication {
 
                                                 // Protections par rôle
                                                 .requestMatchers("/admin/**").hasRole("ADMINISTRATEUR") // Rôle ADMIN pour les routes /admin
-                                                .requestMatchers("/api/patient/**").hasAnyRole("INFIRMIER", "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN
+                                                .requestMatchers("/api/patient/**").hasAnyRole("INFIRMIER", "MEDECIN", "ADMINISTRATEUR")
+                                                .requestMatchers("/api/patient/**").hasAnyRole("INFIRMIER", "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
+                                                .requestMatchers("/api/patient").hasAuthority("ROLE_ADMINISTRATEUR")
+
+
+
+
                                                 .requestMatchers("/api/medecin/**").hasRole("MEDECIN") // Routes réservées aux médecins
 
                                                 // Par défaut, toutes les autres requêtes nécessitent une authentification

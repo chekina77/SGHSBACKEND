@@ -11,58 +11,51 @@ public class Validation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Column(nullable = false)
     private Instant creation;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.creation == null) {
+            this.creation = Instant.now();
+        }
+    }
 
     @Column(nullable = false)
     private Instant expiration;
 
     private Instant activation;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false) // ❌ supprimé unique = true
     private String code;
 
-    /**
-     * Indique si le code est actif (non utilisé et non expiré)
-     */
     @Column(nullable = false)
     private boolean actif = true;
 
-    /**
-     * Type de validation (activation, réinitialisation de mot de passe, etc.)
-     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TypeValidation type = TypeValidation.ACTIVATION;
 
-    @OneToOne
-    @JoinColumn(name = "utilisateur_id", nullable = false)
+    @OneToOne(optional = true)
+    @JoinColumn(name = "utilisateur_id")
     private Utilisateur utilisateur;
+
+    // ❗️On précise qu’il peut y avoir plusieurs validations pour un même pending personnel
+    @ManyToOne(cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "pending_personnel_id", nullable = true)
+    private PendingPersonnel pendingPersonnel;
 
     // Constructeur vide
     public Validation() {}
 
-    // Constructeur avec paramètres
-    public Validation(int id, Instant creation, Instant expiration, Instant activation, String code,
-                      boolean actif, TypeValidation type, Utilisateur utilisateur) {
-        this.id = id;
-        this.creation = creation;
-        this.expiration = expiration;
-        this.activation = activation;
-        this.code = code;
-        this.actif = actif;
-        this.type = type;
-        this.utilisateur = utilisateur;
-    }
-
     // Getters & Setters
-    public int getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -122,12 +115,15 @@ public class Validation {
         this.utilisateur = utilisateur;
     }
 
-    /**
-     * Vérifie si le code est expiré
-     * @return vrai si le code est expiré
-     */
+    public PendingPersonnel getPendingPersonnel() {
+        return pendingPersonnel;
+    }
+
+    public void setPendingPersonnel(PendingPersonnel pendingPersonnel) {
+        this.pendingPersonnel = pendingPersonnel;
+    }
+
     public boolean isExpired() {
         return Instant.now().isAfter(this.expiration);
     }
-
 }

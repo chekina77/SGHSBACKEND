@@ -1,44 +1,47 @@
 package com.example.SGHS4.entite;
 
 import com.example.SGHS4.enums.TypeDeRole;
-import jakarta.persistence.*;
+import com.example.SGHS4.entite.Validation;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
-@Table(name = "PendingPersonnel")
+@Table(name = "pending_personnel")
 public class PendingPersonnel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String cni;  // Ajout du champ CNI
     private String nom;
-    private String telephone;
+
+    @Column(unique = true)
     private String email;
+
+    @Column(unique = true)
+    private String telephone;
+
+    @Column(unique = true)
+    private String cni;
 
     @Enumerated(EnumType.STRING)
     private TypeDeRole role;
 
-    private String verificationCode;
-    private LocalDateTime verificationCodeExpiry;
+    /**
+     * Liste des validations associées à ce personnel en attente
+     */
+    @OneToMany(mappedBy = "pendingPersonnel", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Validation> validations;
 
     // Getters & Setters
+
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public String getCni() {
-        return cni;  // Retourne la CNI
-    }
-
-    public void setCni(String cni) {
-        this.cni = cni;  // Assure que le champ CNI est correctement initialisé
     }
 
     public String getNom() {
@@ -49,14 +52,6 @@ public class PendingPersonnel {
         this.nom = nom;
     }
 
-    public String getTelephone() {
-        return telephone;
-    }
-
-    public void setTelephone(String telephone) {
-        this.telephone = telephone;
-    }
-
     public String getEmail() {
         return email;
     }
@@ -65,27 +60,35 @@ public class PendingPersonnel {
         this.email = email;
     }
 
+    public String getTelephone() {
+        return telephone;
+    }
+
+    public void setTelephone(String telephone) {
+        this.telephone = telephone;
+    }
+
+    public String getCni() {
+        return cni;
+    }
+
+    public void setCni(String cni) {
+        this.cni = cni;
+    }
+
     public TypeDeRole getRole() {
-        return role;  // Retourne le rôle de type TypeDeRole
+        return role;
     }
 
     public void setRole(TypeDeRole role) {
-        this.role = role;  // Assure-toi que le type correspond
+        this.role = role;
     }
 
-    public String getVerificationCode() {
-        return verificationCode;
+    public List<Validation> getValidations() {
+        return validations;
     }
 
-    public void setVerificationCode(String verificationCode) {
-        this.verificationCode = verificationCode;
-    }
-
-    public LocalDateTime getVerificationCodeExpiry() {
-        return verificationCodeExpiry;
-    }
-
-    public void setVerificationCodeExpiry(LocalDateTime verificationCodeExpiry) {
-        this.verificationCodeExpiry = verificationCodeExpiry;
+    public void setValidations(List<Validation> validations) {
+        this.validations = validations;
     }
 }

@@ -30,6 +30,7 @@ public class PatientService {
 
     /**
      * Crée un nouveau patient
+     *
      * @param patientDTO Les données du patient à créer
      * @return Le patient créé
      * @throws ValidationException Si les données du patient sont invalides
@@ -41,11 +42,7 @@ public class PatientService {
         validatePatientData(patientDTO);
 
         // Vérifier si le patient existe déjà par numéro de carte d'identité nationale
-        if (patientDTO.getNumeroAssurance() != null &&
-                patientRepository.existsByNationalIDcardnumber(patientDTO.getNumeroAssurance())) {
-            logger.warn("Un patient avec le numéro de carte d'identité {} existe déjà", patientDTO.getNumeroAssurance());
-            throw new ValidationException("Un patient avec ce numéro de carte d'identité existe déjà");
-        }
+
 
         // Conversion du DTO en entité
         Patient patient = convertToEntity(patientDTO);
@@ -60,6 +57,7 @@ public class PatientService {
 
     /**
      * Récupère un patient par son ID
+     *
      * @param id L'ID du patient
      * @return Le patient trouvé
      * @throws ResourceNotFoundException Si le patient n'est pas trouvé
@@ -79,6 +77,7 @@ public class PatientService {
 
     /**
      * Récupère tous les patients
+     *
      * @return Liste de tous les patients
      */
     @Transactional(readOnly = true)
@@ -95,11 +94,12 @@ public class PatientService {
 
     /**
      * Met à jour un patient existant
-     * @param id L'ID du patient à mettre à jour
+     *
+     * @param id         L'ID du patient à mettre à jour
      * @param patientDTO Les nouvelles données du patient
      * @return Le patient mis à jour
      * @throws ResourceNotFoundException Si le patient n'est pas trouvé
-     * @throws ValidationException Si les données du patient sont invalides
+     * @throws ValidationException       Si les données du patient sont invalides
      */
     public PatientDTO updatePatient(Long id, PatientDTO patientDTO) {
         logger.info("Mise à jour du patient avec l'ID: {}", id);
@@ -114,14 +114,6 @@ public class PatientService {
                     return new ResourceNotFoundException("Patient non trouvé avec l'ID: " + id);
                 });
 
-        // Vérifier l'unicité du numéro de carte d'identité (s'il a changé)
-        if (patientDTO.getNumeroAssurance() != null &&
-                !patientDTO.getNumeroAssurance().equals(existingPatient.getNationalIDcardnumber()) &&
-                patientRepository.existsByNationalIDcardnumber(patientDTO.getNumeroAssurance())) {
-            logger.warn("Un autre patient avec le numéro de carte d'identité {} existe déjà",
-                    patientDTO.getNumeroAssurance());
-            throw new ValidationException("Un autre patient avec ce numéro de carte d'identité existe déjà");
-        }
 
         // Mise à jour des champs
         updatePatientFromDTO(existingPatient, patientDTO);
@@ -135,6 +127,7 @@ public class PatientService {
 
     /**
      * Supprime un patient
+     *
      * @param id L'ID du patient à supprimer
      * @throws ResourceNotFoundException Si le patient n'est pas trouvé
      */
@@ -153,6 +146,7 @@ public class PatientService {
 
     /**
      * Recherche des patients par nom ou prénom
+     *
      * @param query Terme de recherche
      * @return Liste des patients correspondants
      */
@@ -165,9 +159,11 @@ public class PatientService {
             return getAllPatients();
         }
 
-        List<Patient> patients = patientRepository.findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(
-                query.trim(), query.trim());
-        logger.info("{} patients trouvés pour le terme '{}'", patients.size(), query);
+        String trimmedQuery = query.trim();
+        List<Patient> patients = patientRepository
+                .findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(trimmedQuery, trimmedQuery);
+
+        logger.info("{} patients trouvés pour le terme '{}'", patients.size(), trimmedQuery);
 
         return patients.stream()
                 .map(this::convertToDTO)
@@ -176,6 +172,7 @@ public class PatientService {
 
     /**
      * Recherche un patient par son numéro de carte d'identité
+     *
      * @param nationalIdCard Numéro de carte d'identité
      * @return Le patient trouvé ou null
      */
@@ -190,6 +187,7 @@ public class PatientService {
 
     /**
      * Valide les données d'un patient
+     *
      * @param patientDTO DTO à valider
      * @throws ValidationException Si les données sont invalides
      */
@@ -217,58 +215,40 @@ public class PatientService {
      * Convertit un DTO en entité
      */
     private Patient convertToEntity(PatientDTO patientDTO) {
+        if (patientDTO.getNom() == null || patientDTO.getNom().isEmpty()) {
+            throw new ValidationException("Le nom du patient est obligatoire");
+        }
+
         Patient patient = new Patient();
-        // Mapping des champs DTO -> Entity
         patient.setName(patientDTO.getNom());
         patient.setSurname(patientDTO.getPrenom());
-        patient.setDateofbirth(patientDTO.getDateNaissance());
+        patient.setDateOfBirth(patientDTO.getDateNaissance());
         patient.setSexe(patientDTO.getSexe());
-        // Adresse
         patient.setPhoneNumber(patientDTO.getTelephone());
         patient.setEmail(patientDTO.getEmail());
-        // Numéro d'assurance devient ID Card
-        patient.setNationalIDcardnumber(patientDTO.getNumeroAssurance());
-        // Groupe sanguin
-        patient.setBloodType(patientDTO.getGroupeSanguin());
-        // Antécédents médicaux deviennent commentaires
         patient.setComment(patientDTO.getAntecedentsMedicaux());
-        // Allergies
         patient.setAllergies(patientDTO.getAllergies());
-        // Contact d'urgence
-        patient.setEmergencyContact(patientDTO.getContactUrgence());
-        patient.setEmergencyPhone(patientDTO.getTelephoneContactUrgence());
-        // Date du jour
-        patient.setDateoftoday(LocalDate.now());
+        patient.setDateOfToday(LocalDate.now());
 
         return patient;
     }
+
 
     /**
      * Met à jour une entité à partir d'un DTO
      */
     private void updatePatientFromDTO(Patient patient, PatientDTO patientDTO) {
-        // Mapping des champs DTO -> Entity (mise à jour)
         patient.setName(patientDTO.getNom());
         patient.setSurname(patientDTO.getPrenom());
-        patient.setDateofbirth(patientDTO.getDateNaissance());
+        patient.setDateOfBirth(patientDTO.getDateNaissance());
         patient.setSexe(patientDTO.getSexe());
-        // Adresse manquante dans la nouvelle entité
         patient.setPhoneNumber(patientDTO.getTelephone());
         patient.setEmail(patientDTO.getEmail());
-        // Numéro d'assurance devient ID Card
-        patient.setNationalIDcardnumber(patientDTO.getNumeroAssurance());
-        // Groupe sanguin
-        patient.setBloodType(patientDTO.getGroupeSanguin());
-        // Antécédents médicaux deviennent commentaires
         patient.setComment(patientDTO.getAntecedentsMedicaux());
-        // Allergies
         patient.setAllergies(patientDTO.getAllergies());
-        // Contact d'urgence
-        patient.setEmergencyContact(patientDTO.getContactUrgence());
-        patient.setEmergencyPhone(patientDTO.getTelephoneContactUrgence());
-        // Mise à jour de la date du jour
-        patient.setDateoftoday(LocalDate.now());
+        patient.setDateOfToday(LocalDate.now());
     }
+
 
     /**
      * Convertit une entité en DTO
@@ -276,29 +256,15 @@ public class PatientService {
     private PatientDTO convertToDTO(Patient patient) {
         PatientDTO patientDTO = new PatientDTO();
         patientDTO.setId(patient.getId());
-        // Mapping des champs Entity -> DTO
         patientDTO.setNom(patient.getName());
         patientDTO.setPrenom(patient.getSurname());
-        patientDTO.setDateNaissance(patient.getDateofbirth());
+        patientDTO.setDateNaissance(patient.getDateOfBirth());
         patientDTO.setSexe(patient.getSexe());
-        // Adresse manquante dans la nouvelle entité
         patientDTO.setTelephone(patient.getPhoneNumber());
         patientDTO.setEmail(patient.getEmail());
-        // ID Card devient numéro d'assurance
-        patientDTO.setNumeroAssurance(patient.getNationalIDcardnumber());
-        // Groupe sanguin
-        patientDTO.setGroupeSanguin(patient.getBloodType());
-        // Commentaires deviennent antécédents médicaux
         patientDTO.setAntecedentsMedicaux(patient.getComment());
-        // Allergies
         patientDTO.setAllergies(patient.getAllergies());
-        // Contact d'urgence
-        patientDTO.setContactUrgence(patient.getEmergencyContact());
-        patientDTO.setTelephoneContactUrgence(patient.getEmergencyPhone());
-        // Dates de création et mise à jour
-        patientDTO.setDateCreation(patient.getCreatedAt());
-        patientDTO.setDerniereMiseAJour(patient.getUpdatedAt());
-
+        patientDTO.setDateInscription(patient.getDateOfToday());
         return patientDTO;
     }
 }

@@ -8,67 +8,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "patients")
 public class Patient {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String name;  // Nom
-
-    @Column(nullable = false)
-    private String surname;  // Prénom
-
-    @Column(length = 1)
-    private String sexe;  // "M" ou "F"
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateofbirth;
-
-    private Double weight;  // Poids en kg
-
-    private Double height;  // Taille en cm
-
+    @Id @GeneratedValue private Long id;
+    private String name;
+    private String surname;
+    private String sexe;
+    private LocalDate dateOfBirth;
+    private Double weight;
+    private Double height;
     private String email;
-
-    @Column(name = "national_id_card_number", unique = true)
-    private String nationalIDcardnumber;  // Numéro de carte d'identité
-
-    @Column(length = 2000)
-    private String comment;  // Commentaires ou notes
-
-    @Column(name = "date_of_today")
-    private LocalDate dateoftoday;  // Date de la visite
-
-    @Column(name = "phone_number")
+    private String nationalIDcardnumber;
     private String phoneNumber;
-
-    @Column(name = "blood_type")
-    private String bloodType;
-
     private String allergies;
+    private String comment;
+    private LocalDate dateOfToday;
+    @ManyToOne @JoinColumn(name="doctor_id")
+    private Doctor assignedDoctor;
 
-    @Column(name = "emergency_contact")
-    private String emergencyContact;
-
-    @Column(name = "emergency_phone")
-    private String emergencyPhone;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    // Constructeurs
-    public Patient() {
-    }
-
-    // Getters et Setters
     public Long getId() {
         return id;
     }
@@ -101,12 +57,12 @@ public class Patient {
         this.sexe = sexe;
     }
 
-    public LocalDate getDateofbirth() {
-        return dateofbirth;
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
     }
 
-    public void setDateofbirth(LocalDate dateofbirth) {
-        this.dateofbirth = dateofbirth;
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
     }
 
     public Double getWeight() {
@@ -141,36 +97,12 @@ public class Patient {
         this.nationalIDcardnumber = nationalIDcardnumber;
     }
 
-    public String getComment() {
-        return comment;
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
-
-    public LocalDate getDateoftoday() {
-        return dateoftoday;
-    }
-
-    public void setDateoftoday(LocalDate dateoftoday) {
-        this.dateoftoday = dateoftoday;
-    }
-
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
-    }
-
-    public String getBloodType() {
-        return bloodType;
-    }
-
-    public void setBloodType(String bloodType) {
-        this.bloodType = bloodType;
     }
 
     public String getAllergies() {
@@ -181,45 +113,28 @@ public class Patient {
         this.allergies = allergies;
     }
 
-    public String getEmergencyContact() {
-        return emergencyContact;
+    public String getComment() {
+        return comment;
     }
 
-    public void setEmergencyContact(String emergencyContact) {
-        this.emergencyContact = emergencyContact;
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 
-    public String getEmergencyPhone() {
-        return emergencyPhone;
+    public LocalDate getDateOfToday() {
+        return dateOfToday;
     }
 
-    public void setEmergencyPhone(String emergencyPhone) {
-        this.emergencyPhone = emergencyPhone;
+    public void setDateOfToday(LocalDate dateOfToday) {
+        this.dateOfToday = dateOfToday;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public Doctor getAssignedDoctor() {
+        return assignedDoctor;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setAssignedDoctor(Doctor assignedDoctor) {
+        this.assignedDoctor = assignedDoctor;
     }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    @Override
-    public String toString() {
-        return "Patient{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", surname='" + surname + '\'' +
-                ", nationalIDcardnumber='" + nationalIDcardnumber + '\'' +
-                '}';
-    }
+    // getters/setters
 }

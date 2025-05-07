@@ -1,9 +1,6 @@
 package com.example.SGHS4.entite;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -14,56 +11,35 @@ public class AppointementDoctor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private LocalDateTime date;
-
-    @Column(nullable = false)
-    private Long doctorId;
-
     @ManyToOne
     @JoinColumn(name = "patient_id", nullable = false)
     private Patient patient;
 
+    @ManyToOne
+    @JoinColumn(name = "doctor_id", nullable = false)
+    private Doctor doctor;
+
     @Column(nullable = false)
-    private String status = "PROGRAMMÉ"; // PROGRAMMÉ, CONFIRMÉ, ANNULÉ, TERMINÉ, ABSENT
+    private LocalDateTime date;
 
-    private String notes;
+    @Column(nullable = false)
+    private String status;  // champ ajouté pour gérer vivant/mort
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    public AppointementDoctor() {}
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    // Constructeurs
-    public AppointementDoctor() {
+    public AppointementDoctor(Patient patient, Doctor doctor, LocalDateTime date, String status) {
+        this.patient = patient;
+        this.doctor = doctor;
+        this.date = date;
+        this.status = status;
     }
 
-    // Getters et Setters
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public LocalDateTime getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDateTime date) {
-        this.date = date;
-    }
-
-    public Long getDoctorId() {
-        return doctorId;
-    }
-
-    public void setDoctorId(Long doctorId) {
-        this.doctorId = doctorId;
     }
 
     public Patient getPatient() {
@@ -74,6 +50,22 @@ public class AppointementDoctor {
         this.patient = patient;
     }
 
+    public Doctor getDoctor() {
+        return doctor;
+    }
+
+    public void setDoctor(Doctor doctor) {
+        this.doctor = doctor;
+    }
+
+    public LocalDateTime getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDateTime date) {
+        this.date = date;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -82,37 +74,13 @@ public class AppointementDoctor {
         this.status = status;
     }
 
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
     @Override
     public String toString() {
         return "AppointementDoctor{" +
                 "id=" + id +
+                ", patient=" + patient +
+                ", doctor=" + doctor +
                 ", date=" + date +
-                ", doctorId=" + doctorId +
-                ", patientId=" + (patient != null ? patient.getId() : null) +
                 ", status='" + status + '\'' +
                 '}';
     }

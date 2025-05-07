@@ -1,20 +1,21 @@
 package com.example.SGHS4.service;
 
-import com.example.SGHS4.dto.PersonnelDTO;
+import com.example.SGHS4.dto.PendingPersonnelDTO;
 import com.example.SGHS4.dto.ModificationMdpDTO;
+import com.example.SGHS4.entite.*;
 import com.example.SGHS4.enums.TypeDeRole;
-import com.example.SGHS4.entite.Role;
-import com.example.SGHS4.entite.Utilisateur;
-import com.example.SGHS4.entite.Validation;
+import com.example.SGHS4.exceptions.ResourceNotFoundException;
 import com.example.SGHS4.exceptions.UtilisateurExisteDejaException;
 import com.example.SGHS4.exceptions.UtilisateurInactifException;
 import com.example.SGHS4.exceptions.ValidationException;
-import com.example.SGHS4.repository.RoleRepository;
-import com.example.SGHS4.repository.UtilisateurRepository;
+import com.example.SGHS4.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,9 +24,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -34,7 +38,6 @@ public class UtilisateurService implements UserDetailsService {
 
     private static final Logger logger = LoggerFactory.getLogger(UtilisateurService.class);
 
-    // Expressions régulières pour la validation
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}$");
 
@@ -42,50 +45,70 @@ public class UtilisateurService implements UserDetailsService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final ValidationService validationService;
     private final RoleRepository roleRepository;
+    private final PendingPersonnelRepository pendingPersonnelRepository;
+    private final EmailService emailService;
+
+    private ValidationRepository validationRepository;
+
+    private CodeReinitialisationRepository codeReinitialisationRepository;
+    private static final long EXPIRATION_HOURS = 24L;
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+
+
 
     @Value("${user.password.min-length:8}")
     private int passwordMinLength;
-
-    @Value("${user.password.temporary-expires:1440}") // 24 heures par défaut (en minutes)
+    @Value("${validation.code.expiration-hours:24}")
+    private int codeExpirationHours;
+    @Value("${user.password.temporary-expires:1440}")
     private long temporaryPasswordExpiresMinutes;
 
     @Autowired
     public UtilisateurService(UtilisateurRepository utilisateurRepository,
                               BCryptPasswordEncoder passwordEncoder,
                               ValidationService validationService,
-                              RoleRepository roleRepository) {
+                              RoleRepository roleRepository,
+                              PendingPersonnelRepository pendingPersonnelRepository,
+                              EmailService emailService,
+                              ValidationRepository validationRepository,
+                              CodeReinitialisationRepository codeReinitialisationRepository,
+                              JavaMailSender mailSender) {
         this.utilisateurRepository = utilisateurRepository;
         this.passwordEncoder = passwordEncoder;
         this.validationService = validationService;
         this.roleRepository = roleRepository;
+        this.pendingPersonnelRepository = pendingPersonnelRepository;
+        this.emailService = emailService;
+        this.validationRepository = validationRepository;
+        this.codeReinitialisationRepository = codeReinitialisationRepository;
+        this.mailSender = mailSender; // <-- et ici
+
+
     }
 
-    /**
-     * Inscription d'un nouvel utilisateur depuis un DTO
-     * @param dto Les données du personnel à inscrire
-     * @throws UtilisateurExisteDejaException Si les informations sont déjà utilisées
-     * @throws ValidationException Si les données sont invalides
-     */
-    public void inscription(PersonnelDTO dto) {
-        // Validation d'email
+    public void inscription(PendingPersonnelDTO dto) {
         if (dto.getEmail() == null || !EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
             throw new ValidationException("L'adresse e-mail est invalide.");
         }
 
-        // Vérification de doublons
-        if (utilisateurRepository.findByEmail(dto.getEmail()).isPresent()) {
+        if (utilisateurRepository.findByEmail(dto.getEmail()).isPresent() ||
+                pendingPersonnelRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new UtilisateurExisteDejaException("Cet e-mail est déjà utilisé.");
         }
 
-        if (utilisateurRepository.existsByTelephone(dto.getTelephone())) {
+        if (utilisateurRepository.existsByTelephone(dto.getTelephone()) ||
+                pendingPersonnelRepository.existsByTelephone(dto.getTelephone())) {
             throw new UtilisateurExisteDejaException("Ce numéro de téléphone est déjà utilisé.");
         }
 
-        if (utilisateurRepository.existsByCni(dto.getCni())) {
+        if (utilisateurRepository.existsByCni(dto.getCni()) ||
+                pendingPersonnelRepository.existsByCni(dto.getCni())) {
             throw new UtilisateurExisteDejaException("Ce numéro de CNI est déjà utilisé.");
         }
 
-        // Validation du rôle
         TypeDeRole roleEnum = dto.getRoleEnum();
         if (roleEnum == null) {
             throw new ValidationException("Rôle non valide.");
@@ -94,94 +117,77 @@ public class UtilisateurService implements UserDetailsService {
         Role role = roleRepository.findByLibelle(roleEnum)
                 .orElseThrow(() -> new ValidationException("Rôle '" + roleEnum + "' non trouvé dans la base de données."));
 
-        // Création de l'utilisateur
-        Utilisateur utilisateur = new Utilisateur();
-        utilisateur.setEmail(dto.getEmail());
-        utilisateur.setNom(dto.getNom());
-        utilisateur.setTelephone(dto.getTelephone());
-        utilisateur.setCni(dto.getCni());
+        // Créer un nouvel objet PendingPersonnel
+        PendingPersonnel pending = new PendingPersonnel();
+        pending.setNom(dto.getNom());
+        pending.setEmail(dto.getEmail());
+        pending.setTelephone(dto.getTelephone());
+        pending.setCni(dto.getCni());
+        pending.setRole(roleEnum);
 
-        // Génération d'un mot de passe temporaire sécurisé (12 caractères)
-        // Le mot de passe par défaut est encodé et devra être changé à la première connexion
-        utilisateur.setMdp(passwordEncoder.encode(dto.getTelephone()));
-        utilisateur.setMotDePasseTemporaire(true);
-        utilisateur.setDateCreationMotDePasse(Instant.now());
-        utilisateur.setRole(roleEnum);
+        // Générer le code d'activation
+        String codeActivation = validationService.genererCode();
 
-        // Sauvegarde de l'utilisateur et génération du code d'activation
-        utilisateurRepository.save(utilisateur);
-        validationService.enregistrer(utilisateur);
+        // Créer un objet Validation
+        Validation validation = new Validation();
+        validation.setCode(codeActivation);
+        validation.setCreation(Instant.now());
 
-        logger.info("Nouvel utilisateur inscrit avec l'email: {}", dto.getEmail());
+        // Définir la date d'expiration du code
+        LocalDateTime expiryDateTime = LocalDateTime.ofInstant(Instant.now().plus(Duration.ofHours(codeExpirationHours)), ZoneId.systemDefault());
+        validation.setExpiration(expiryDateTime.toInstant(ZoneOffset.UTC));
+
+        // Lier la validation au personnel en attente
+        validation.setPendingPersonnel(pending);
+
+        // Sauvegarder l'entité PendingPersonnel
+        pendingPersonnelRepository.save(pending);
+
+        // Sauvegarder l'entité Validation
+        validationRepository.save(validation);
+
+        // Envoyer l'email avec le code d'activation
+        emailService.envoyerCodeActivation(dto.getEmail(), codeActivation);
+
+        logger.info("Inscription en attente enregistrée pour {}", dto.getEmail());
     }
 
-    /**
-     * Activation d'un compte utilisateur via un code de validation
-     * @param activation Map contenant le code d'activation
-     * @throws ValidationException Si le code est invalide ou expiré
-     */
     public void activation(Map<String, String> activation) {
-        if (!activation.containsKey("code")) {
-            throw new ValidationException("Le code d'activation est requis");
+        if (!activation.containsKey("code") || !activation.containsKey("motDePasse")) {
+            throw new ValidationException("Le code d'activation et le mot de passe sont requis.");
         }
 
-        Validation validation = validationService.lireEnFonctionDuCode(activation.get("code"));
+        String code = activation.get("code");
+        String motDePasse = activation.get("motDePasse");
 
+        Validation validation = validationService.lireEnFonctionDuCode(code);
         if (Instant.now().isAfter(validation.getExpiration())) {
             throw new ValidationException("Le code de validation a expiré.");
         }
 
-        Utilisateur utilisateur = utilisateurRepository
-                .findById(validation.getUtilisateur().getId())
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé."));
+        PendingPersonnel pending = validation.getPendingPersonnel();
 
+        if (pending == null) {
+            throw new ResourceNotFoundException("Aucun utilisateur en attente associé à ce code.");
+        }
+
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setNom(pending.getNom());
+        utilisateur.setEmail(pending.getEmail());
+        utilisateur.setTelephone(pending.getTelephone());
+        utilisateur.setCni(pending.getCni());
+        utilisateur.setRole(pending.getRole());
+        utilisateur.setMdp(passwordEncoder.encode(motDePasse));
         utilisateur.setActif(true);
-        utilisateurRepository.save(utilisateur);
-
-        logger.info("Activation réussie pour l'utilisateur ID {}", utilisateur.getId());
-    }
-
-    /**
-     * Modification du mot de passe utilisateur
-     * @param dto Contient l'ancien et le nouveau mot de passe
-     * @throws ValidationException Si le mot de passe ne respecte pas les critères de sécurité
-     */
-    public void modifierMotDePasse(ModificationMdpDTO dto) {
-        // Récupération de l'utilisateur connecté
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Utilisateur utilisateur = utilisateurRepository
-                .findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé."));
-
-        // Vérification de l'ancien mot de passe
-        if (!passwordEncoder.matches(dto.getAncienMotDePasse(), utilisateur.getPassword())) {
-            throw new ValidationException("Mot de passe actuel incorrect.");
-        }
-
-        // Validation du nouveau mot de passe
-        if (dto.getNouveauMotDePasse().length() < passwordMinLength) {
-            throw new ValidationException("Le mot de passe doit contenir au moins " + passwordMinLength + " caractères.");
-        }
-
-        if (!PASSWORD_PATTERN.matcher(dto.getNouveauMotDePasse()).matches()) {
-            throw new ValidationException("Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.");
-        }
-
-        // Mise à jour du mot de passe
-        utilisateur.setMdp(passwordEncoder.encode(dto.getNouveauMotDePasse()));
         utilisateur.setMotDePasseTemporaire(false);
         utilisateur.setDateCreationMotDePasse(Instant.now());
+
         utilisateurRepository.save(utilisateur);
+        pendingPersonnelRepository.delete(pending);
+        validationService.supprimer(validation);
 
-        logger.info("Mot de passe modifié pour l'utilisateur {}", utilisateur.getEmail());
+        logger.info("Activation réussie pour l'email {}", utilisateur.getEmail());
     }
-
-    /**
-     * Chargement d'un utilisateur pour Spring Security
-     * @param username Email de l'utilisateur
-     * @return UserDetails Les détails de l'utilisateur
-     * @throws UsernameNotFoundException Si l'utilisateur n'existe pas
-     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Utilisateur utilisateur = utilisateurRepository
@@ -191,13 +197,11 @@ public class UtilisateurService implements UserDetailsService {
                     return new UsernameNotFoundException("Aucun utilisateur ne correspond à cet e-mail.");
                 });
 
-        // Vérification si l'utilisateur est actif
         if (!utilisateur.isActif()) {
             logger.warn("Tentative de connexion avec un compte inactif: {}", username);
             throw new UtilisateurInactifException("Votre compte n'est pas activé. Veuillez vérifier votre email pour le code d'activation.");
         }
 
-        // Vérification si le mot de passe temporaire est expiré
         if (utilisateur.isMotDePasseTemporaire()) {
             Instant passwordCreation = utilisateur.getDateCreationMotDePasse();
             if (passwordCreation != null &&
@@ -209,4 +213,110 @@ public class UtilisateurService implements UserDetailsService {
 
         return utilisateur;
     }
+    public void envoyerCodeReinitialisation(String email) {
+        // Générer un code aléatoire de 6 chiffres
+        String code = genererCode();
+
+        // Créer ou récupérer le PendingPersonnel associé à cet email
+        PendingPersonnel pending = pendingPersonnelRepository.findByEmail(email).orElse(null);
+        if (pending == null) {
+            pending = new PendingPersonnel();
+            pending.setEmail(email);
+        }
+
+        // Créer l'objet Validation avec une expiration de 24 heures
+        Validation validation = new Validation();
+        validation.setCode(code);
+        validation.setExpiration(Instant.now().plus(EXPIRATION_HOURS, ChronoUnit.HOURS));
+        validation.setPendingPersonnel(pending);
+
+        // Sauvegarder le code dans la base de données
+        validationRepository.save(validation);
+
+        // Envoi par email
+        emailService.envoyerCodeReinitialisation(email, code);
+        logger.info("Code de réinitialisation généré et envoyé à {}", email);
+    }
+
+    /**
+     * Envoie un code de réinitialisation fourni en paramètre à l'utilisateur par email.
+     * À utiliser si le code a déjà été créé ailleurs (ex: renvoi d'un code existant).
+     */
+    public void envoyerCodeReinitialisation(String email, String code) {
+        emailService.envoyerCodeReinitialisation(email, code);
+        logger.info("Code de réinitialisation envoyé à {}", email);
+    }
+    public void modifierMotDePasse(ModificationMdpDTO dto) {
+        if (!dto.getNouveauMotDePasse().equals(dto.getConfirmationNouveauMotDePasse())) {
+            throw new ValidationException("Les mots de passe ne correspondent pas.");
+        }
+
+        Validation validation = validationRepository.findByCode(dto.getCodeReinitialisation())
+                .orElseThrow(() -> new ValidationException("Code invalide."));
+
+        if (validation.getExpiration().isBefore(Instant.now())) {
+            throw new ValidationException("Code expiré.");
+        }
+
+        if (!validation.getPendingPersonnel().getEmail().equalsIgnoreCase(dto.getEmail())) {
+            throw new ValidationException("L'email ne correspond pas.");
+        }
+
+        if (dto.getNouveauMotDePasse().length() < passwordMinLength) {
+            throw new ValidationException("Le mot de passe doit contenir au moins " + passwordMinLength + " caractères.");
+        }
+
+        if (!PASSWORD_PATTERN.matcher(dto.getNouveauMotDePasse()).matches()) {
+            throw new ValidationException("Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.");
+        }
+
+        Utilisateur utilisateur = utilisateurRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé."));
+
+        utilisateur.setMdp(passwordEncoder.encode(dto.getNouveauMotDePasse()));
+        utilisateur.setMotDePasseTemporaire(false);
+        utilisateur.setDateCreationMotDePasse(Instant.now());
+        utilisateurRepository.save(utilisateur);
+
+        validationRepository.delete(validation);
+
+        logger.info("Mot de passe mis à jour pour {}", dto.getEmail());
+    }
+    public void verifierEtEnvoyerNouveauCode(String email) {
+        // Vérifier que l'utilisateur existe
+        Utilisateur utilisateur = utilisateurRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé avec l'email : " + email));
+
+        // Désactiver les anciens codes encore actifs pour cet utilisateur
+        List<CodeReinitialisation> anciensCodes = codeReinitialisationRepository.findByUtilisateurAndActifTrue(utilisateur);
+        for (CodeReinitialisation code : anciensCodes) {
+            code.setActif(false);
+        }
+        codeReinitialisationRepository.saveAll(anciensCodes);
+
+        // Générer un nouveau code
+        String nouveauCode = genererCode();
+
+        // Créer un nouveau code de réinitialisation
+        CodeReinitialisation nouveauCodeReinitialisation = new CodeReinitialisation();
+        nouveauCodeReinitialisation.setUtilisateur(utilisateur);
+        nouveauCodeReinitialisation.setCode(nouveauCode);
+        nouveauCodeReinitialisation.setExpirationDate(Instant.now().plus(EXPIRATION_HOURS, ChronoUnit.HOURS));
+        nouveauCodeReinitialisation.setActif(true);
+
+        codeReinitialisationRepository.save(nouveauCodeReinitialisation);
+
+        // Envoyer le code
+        envoyerCodeReinitialisation(email, nouveauCode);
+    }
+
+
+    private String genererCode() {
+        // Génère un code aléatoire de 6 chiffres
+        int code = (int)(Math.random() * 900000) + 100000; // entre 100000 et 999999
+        return String.valueOf(code);
+    }
+
+
+
 }

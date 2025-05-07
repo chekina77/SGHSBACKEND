@@ -1,44 +1,24 @@
 package com.example.SGHS4.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class ModificationMdpDTO {
 
-        @NotBlank(message = "L'ancien mot de passe est obligatoire")
-        private String ancienMotDePasse;
-
         @NotBlank(message = "Le nouveau mot de passe est obligatoire")
-        @Size(min = 8, message = "Le mot de passe doit contenir au moins 8 caractères")
-        @Pattern(
-                regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}$",
-                message = "Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial"
-        )
         private String nouveauMotDePasse;
 
-        @NotBlank(message = "La confirmation du nouveau mot de passe est obligatoire")
+        @NotBlank(message = "La confirmation du mot de passe est obligatoire")
         private String confirmationNouveauMotDePasse;
 
-        // Constructeur par défaut
-        public ModificationMdpDTO() {
-        }
+        @NotBlank(message = "Le code de réinitialisation est obligatoire")
+        private String codeReinitialisation;
 
-        // Constructeur avec paramètres
-        public ModificationMdpDTO(String ancienMotDePasse, String nouveauMotDePasse, String confirmationNouveauMotDePasse) {
-                this.ancienMotDePasse = ancienMotDePasse;
-                this.nouveauMotDePasse = nouveauMotDePasse;
-                this.confirmationNouveauMotDePasse = confirmationNouveauMotDePasse;
-        }
-
-        // Getters et setters
-        public String getAncienMotDePasse() {
-                return ancienMotDePasse;
-        }
-
-        public void setAncienMotDePasse(String ancienMotDePasse) {
-                this.ancienMotDePasse = ancienMotDePasse;
-        }
+        @NotBlank(message = "L'email est obligatoire")
+        @Email(message = "Email invalide")
+        private String email;
 
         public String getNouveauMotDePasse() {
                 return nouveauMotDePasse;
@@ -55,4 +35,21 @@ public class ModificationMdpDTO {
         public void setConfirmationNouveauMotDePasse(String confirmationNouveauMotDePasse) {
                 this.confirmationNouveauMotDePasse = confirmationNouveauMotDePasse;
         }
+
+        public String getCodeReinitialisation() {
+                return codeReinitialisation;
+        }
+
+        public void setCodeReinitialisation(String codeReinitialisation) {
+                this.codeReinitialisation = codeReinitialisation;
+        }
+
+        public String getEmail() {
+                return email;
+        }
+
+        public void setEmail(String email) {
+                this.email = email;
+        }
+        // Constructeurs, getters, setters
 }

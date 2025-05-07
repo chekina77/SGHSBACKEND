@@ -7,38 +7,48 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * Repository pour l'entité PendingPersonnel.
+ * Repository pour accéder et manipuler les données de la table PendingPersonnel.
  */
 @Repository
 public interface PendingPersonnelRepository extends JpaRepository<PendingPersonnel, Long> {
+
     /**
-     * Recherche un PendingPersonnel par son numéro de CNI.
+     * Recherche un personnel en attente par son numéro de CNI.
      *
-     * @param cni le numéro de CNI
-     * @return un Optional contenant le PendingPersonnel s'il existe
+     * @param cni Le numéro de CNI
+     * @return Un Optional contenant le personnel s'il existe, sinon vide
      */
     Optional<PendingPersonnel> findByCni(String cni);
 
     /**
-     * Vérifie l'existence d'un PendingPersonnel avec le CNI donné.
+     * Vérifie si un personnel en attente existe avec le CNI donné.
      *
-     * @param cni le numéro de CNI
-     * @return true si un enregistrement existe, false sinon
+     * @param cni Le numéro de CNI
+     * @return true si un personnel avec ce CNI existe, sinon false
      */
     boolean existsByCni(String cni);
 
     /**
-     * (Optionnel) Recherche par email
+     * Recherche un personnel en attente par email.
+     *
+     * @param email L'adresse email
+     * @return Un Optional contenant le personnel s'il existe, sinon vide
      */
     Optional<PendingPersonnel> findByEmail(String email);
 
     /**
-     * (Optionnel) Vérifie existence par téléphone
+     * Vérifie si un personnel en attente existe avec ce numéro de téléphone.
+     *
+     * @param telephone Le numéro de téléphone
+     * @return true si un personnel avec ce téléphone existe, sinon false
      */
     boolean existsByTelephone(String telephone);
 
     /**
-     * (Optionnel) Vérifie existence par email
+     * Vérifie si un personnel en attente existe avec cette adresse email.
+     *
+     * @param email L'adresse email
+     * @return true si un personnel avec cet email existe, sinon false
      */
     boolean existsByEmail(String email);
 }
