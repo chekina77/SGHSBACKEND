@@ -23,6 +23,9 @@ public class Utilisateur implements UserDetails {
     private String mdp;
 
     private String nom;
+    @Column(name = "prenom")
+    private String prenom;
+
 
     @Column(unique = true)
     private String email;
@@ -48,15 +51,17 @@ public class Utilisateur implements UserDetails {
     @Column(name = "date_creation_mot_de_passe")
     private Instant dateCreationMotDePasse;
 
+
     public Utilisateur() {
         // Initialiser la date de création du mot de passe à l'instant présent
         this.dateCreationMotDePasse = Instant.now();
     }
 
-    public Utilisateur(Long id, String mdp, String nom, String email, String telephone, String cni, String verificationCode, boolean actif, TypeDeRole role) {
+    public Utilisateur(Long id, String mdp, String nom,String prenom, String email, String telephone, String cni, String verificationCode, boolean actif, TypeDeRole role) {
         this.id = id;
         this.mdp = mdp;
         this.nom = nom;
+        this.prenom =prenom;
         this.email = email;
         this.telephone = telephone;
         this.cni = cni;

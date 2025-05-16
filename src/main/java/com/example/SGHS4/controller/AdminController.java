@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -203,10 +204,11 @@ public class AdminController {
     /**
      * Liste tous les membres du personnel (actifs et inactifs)
      */
+
     @GetMapping("/personnel")
     @Operation(
             summary = "Liste du personnel",
-            description = "Récupère la liste de tout le personnel enregistré",
+            description = "Récupère la liste de tout le personnel de santé enregistré",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Liste récupérée avec succès"),
                     @ApiResponse(responseCode = "401", description = "Non autorisé"),
@@ -220,12 +222,17 @@ public class AdminController {
             return ResponseEntity.ok(adminService.getAllPersonnel());
         } catch (Exception e) {
             logger.error("Erreur lors de la récupération de la liste du personnel", e);
-
             Map<String, String> response = new HashMap<>();
             response.put("error", "Erreur lors de la récupération des données: " + e.getMessage());
-
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+    @GetMapping("/search")
+    public ResponseEntity<List<UtilisateurDTO>> searchPersonnel(@RequestParam("keyword") String keyword) {
+        List<UtilisateurDTO> result = adminService.searchPersonnel(keyword);
+        return ResponseEntity.ok(result);
+    }
+
+
 
 }

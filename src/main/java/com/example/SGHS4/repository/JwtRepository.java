@@ -1,5 +1,6 @@
 package com.example.SGHS4.repository;
 
+import com.example.SGHS4.entite.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,8 @@ import java.util.stream.Stream;
 
 @Repository
 public interface JwtRepository extends JpaRepository<Jwt, Long> {
+    void deleteByUtilisateurId(Long utilisateurId);
+
 
     /**
      * Trouve un JWT par sa valeur et ses états (désactivé et expiré)
@@ -93,4 +96,6 @@ public interface JwtRepository extends JpaRepository<Jwt, Long> {
     @Modifying
     @Query("UPDATE Jwt j SET j.expire = true, j.desactive = true WHERE j.utilisateur.email = :email")
     int invalidateAllTokensForUser(@Param("email") String email);
+    List<Jwt> findByUtilisateur(Utilisateur utilisateur);
+
 }

@@ -2,10 +2,6 @@ package com.example.SGHS4.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-/**
- * Objet de transfert pour un médecin.
- * Ne contient que les champs exposés à l'API.
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DoctorDTO {
     private Long id;
@@ -16,6 +12,19 @@ public class DoctorDTO {
 
     public DoctorDTO() {}
 
+    // Ajout d’un constructeur sans id pour les listes simples
+    public DoctorDTO(String nom, String prenom, String email, String telephone) {
+        this.nom = nom;
+        this.prenom = prenom;
+        this.email = email;
+        this.telephone = telephone;
+    }
+
+    public DoctorDTO(Long id, String nom) {
+        this.id = id;
+        this.nom = nom;
+    }
+
     public DoctorDTO(Long id, String nom, String prenom, String email, String telephone) {
         this.id = id;
         this.nom = nom;
@@ -24,7 +33,7 @@ public class DoctorDTO {
         this.telephone = telephone;
     }
 
-    // Getters et setters
+    // Getters / Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

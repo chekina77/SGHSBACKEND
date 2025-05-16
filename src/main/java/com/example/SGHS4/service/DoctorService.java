@@ -47,6 +47,7 @@ public class DoctorService {
 
     /**
      * Recherche un médecin par ID.
+     *
      * @throws ResourceNotFoundException si non trouvé.
      */
     public DoctorDTO getDoctorById(Long id) {
@@ -101,4 +102,7 @@ public class DoctorService {
         dto.setTelephone(doc.getTelephone());
         return dto;
     }
+    /**
+     * Retourne tous les médecins avec seulement les champs : nom, prenom, email, telephone.
+     */
 }

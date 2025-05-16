@@ -25,7 +25,8 @@ public class DoctorController {
      */
     @GetMapping
     public ResponseEntity<List<DoctorDTO>> getAll() {
-        return ResponseEntity.ok(service.getAllDoctors());
+        List<DoctorDTO> doctors = service.getAllDoctors();
+        return ResponseEntity.ok(doctors);
     }
 
     /**

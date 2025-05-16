@@ -9,38 +9,64 @@ import java.time.LocalDateTime;
 public class AppointmentResponseDTO {
 
     private Long id;
+    private String patientName;
 
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime date;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private LocalDateTime appointmentDate;
 
-    private String status;               // ajouté pour refléter le statut
-    private DoctorDTO doctor;
-    private PatientDTO patient;
+    private String medecinName;
+    private String statut;
 
     public AppointmentResponseDTO() {
     }
 
-    public AppointmentResponseDTO(Long id, LocalDateTime date, String status, DoctorDTO doctor, PatientDTO patient) {
+    public AppointmentResponseDTO(Long id, String patientName, LocalDateTime appointmentDate, String medecinName, String statut) {
         this.id = id;
-        this.date = date;
-        this.status = status;
-        this.doctor = doctor;
-        this.patient = patient;
+        this.patientName = patientName;
+        this.appointmentDate = appointmentDate;
+        this.medecinName = medecinName;
+        this.statut = statut;
     }
 
     // Getters et setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
 
-    public LocalDateTime getDate() { return date; }
-    public void setDate(LocalDateTime date) { this.date = date; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public DoctorDTO getDoctor() { return doctor; }
-    public void setDoctor(DoctorDTO doctor) { this.doctor = doctor; }
+    public String getPatientName() {
+        return patientName;
+    }
 
-    public PatientDTO getPatient() { return patient; }
-    public void setPatient(PatientDTO patient) { this.patient = patient; }
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
+    }
+
+    public LocalDateTime getAppointmentDate() {
+        return appointmentDate;
+    }
+
+    public void setAppointmentDate(LocalDateTime appointmentDate) {
+        this.appointmentDate = appointmentDate;
+    }
+
+    public String getMedecinName() {
+        return medecinName;
+    }
+
+    public void setMedecinName(String medecinName) {
+        this.medecinName = medecinName;
+    }
+
+    public String getStatut() {
+        return statut;
+    }
+
+    public void setStatut(String statut) {
+        this.statut = statut;
+    }
 }

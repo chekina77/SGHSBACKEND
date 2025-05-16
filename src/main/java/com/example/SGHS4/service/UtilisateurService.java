@@ -1,5 +1,6 @@
 package com.example.SGHS4.service;
 
+import com.example.SGHS4.dto.DoctorDTO;
 import com.example.SGHS4.dto.PendingPersonnelDTO;
 import com.example.SGHS4.dto.ModificationMdpDTO;
 import com.example.SGHS4.entite.*;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -47,6 +49,8 @@ public class UtilisateurService implements UserDetailsService {
     private final RoleRepository roleRepository;
     private final PendingPersonnelRepository pendingPersonnelRepository;
     private final EmailService emailService;
+    private final AppointementDoctorRepository appointementDoctorRepository;
+
 
     private ValidationRepository validationRepository;
 
@@ -55,8 +59,8 @@ public class UtilisateurService implements UserDetailsService {
 
     @Autowired
     private JavaMailSender mailSender;
-
-
+    @Autowired
+    private JwtRepository jwtRepository;
 
 
     @Value("${user.password.min-length:8}")
@@ -75,7 +79,7 @@ public class UtilisateurService implements UserDetailsService {
                               EmailService emailService,
                               ValidationRepository validationRepository,
                               CodeReinitialisationRepository codeReinitialisationRepository,
-                              JavaMailSender mailSender) {
+                              JavaMailSender mailSender,AppointementDoctorRepository appointementDoctorRepository) {
         this.utilisateurRepository = utilisateurRepository;
         this.passwordEncoder = passwordEncoder;
         this.validationService = validationService;
@@ -85,9 +89,19 @@ public class UtilisateurService implements UserDetailsService {
         this.validationRepository = validationRepository;
         this.codeReinitialisationRepository = codeReinitialisationRepository;
         this.mailSender = mailSender; // <-- et ici
+        this.appointementDoctorRepository = appointementDoctorRepository;
+
 
 
     }
+
+    public List<DoctorDTO> getNomsDesMedecins() {
+        return utilisateurRepository.findByRole(TypeDeRole.MEDECIN)
+                .stream()
+                .map(u -> new DoctorDTO(u.getId(), u.getNom()))
+                .collect(Collectors.toList());
+    }
+
 
     public void inscription(PendingPersonnelDTO dto) {
         if (dto.getEmail() == null || !EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
@@ -188,6 +202,7 @@ public class UtilisateurService implements UserDetailsService {
 
         logger.info("Activation réussie pour l'email {}", utilisateur.getEmail());
     }
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Utilisateur utilisateur = utilisateurRepository
@@ -213,6 +228,7 @@ public class UtilisateurService implements UserDetailsService {
 
         return utilisateur;
     }
+
     public void envoyerCodeReinitialisation(String email) {
         // Générer un code aléatoire de 6 chiffres
         String code = genererCode();
@@ -246,6 +262,7 @@ public class UtilisateurService implements UserDetailsService {
         emailService.envoyerCodeReinitialisation(email, code);
         logger.info("Code de réinitialisation envoyé à {}", email);
     }
+
     public void modifierMotDePasse(ModificationMdpDTO dto) {
         if (!dto.getNouveauMotDePasse().equals(dto.getConfirmationNouveauMotDePasse())) {
             throw new ValidationException("Les mots de passe ne correspondent pas.");
@@ -282,6 +299,7 @@ public class UtilisateurService implements UserDetailsService {
 
         logger.info("Mot de passe mis à jour pour {}", dto.getEmail());
     }
+
     public void verifierEtEnvoyerNouveauCode(String email) {
         // Vérifier que l'utilisateur existe
         Utilisateur utilisateur = utilisateurRepository.findByEmail(email)
@@ -313,10 +331,53 @@ public class UtilisateurService implements UserDetailsService {
 
     private String genererCode() {
         // Génère un code aléatoire de 6 chiffres
-        int code = (int)(Math.random() * 900000) + 100000; // entre 100000 et 999999
+        int code = (int) (Math.random() * 900000) + 100000; // entre 100000 et 999999
         return String.valueOf(code);
     }
 
+    public Utilisateur findById(Long id) {
+        return utilisateurRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID : " + id));
+    }
 
+    // Méthode pour supprimer un utilisateur
+    public void supprimerUtilisateur(Long utilisateurId) {
+        Utilisateur utilisateur = utilisateurRepository.findById(utilisateurId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'ID : " + utilisateurId));
+
+        // Vérification de rendez-vous associés
+        List<AppointementDoctor> rendezVous = appointementDoctorRepository.findByUtilisateur(utilisateur);
+        if (!rendezVous.isEmpty()) {
+            throw new RuntimeException("Impossible de supprimer cet utilisateur : des rendez-vous lui sont associés.");
+        }
+
+        // Suppression
+        utilisateurRepository.delete(utilisateur);
+    }
+    public void updateUtilisateur(Long id, PendingPersonnelDTO dto) {
+        Utilisateur utilisateur = utilisateurRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'id : " + id));
+
+        // Vérifications optionnelles si on souhaite empêcher les doublons
+        if (!utilisateur.getEmail().equals(dto.getEmail()) && utilisateurRepository.existsByEmail(dto.getEmail())) {
+            throw new IllegalStateException("Cet email est déjà utilisé.");
+        }
+
+        if (!utilisateur.getTelephone().equals(dto.getTelephone()) && utilisateurRepository.existsByTelephone(dto.getTelephone())) {
+            throw new IllegalStateException("Ce numéro de téléphone est déjà utilisé.");
+        }
+
+        if (!utilisateur.getCni().equals(dto.getCni()) && utilisateurRepository.existsByCni(dto.getCni())) {
+            throw new IllegalStateException("Ce numéro de carte nationale d'identité est déjà utilisé.");
+        }
+
+        // Mise à jour des champs
+        utilisateur.setNom(dto.getNom());
+        utilisateur.setEmail(dto.getEmail());
+        utilisateur.setTelephone(dto.getTelephone());
+        utilisateur.setCni(dto.getCni());
+
+        utilisateurRepository.save(utilisateur);
+    }
 
 }

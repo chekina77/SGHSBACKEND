@@ -18,10 +18,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+import com.example.SGHS4.dto.RefreshTokenRequest; // Assure-toi que cette ligne est présente
+
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -55,6 +58,26 @@ public class UtilisateurController {
         utilisateurService.inscription(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "Utilisateur inscrit avec succès. Veuillez vérifier votre email pour l'activation."));
+    }
+    @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Suppression d'un utilisateur",
+            description = "Permet de supprimer un utilisateur à partir de son ID",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Utilisateur supprimé avec succès"),
+                    @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé"),
+                    @ApiResponse(responseCode = "401", description = "Non autorisé"),
+                    @ApiResponse(responseCode = "403", description = "Accès refusé")
+            }
+    )
+    public ResponseEntity<?> supprimerUtilisateur(@PathVariable Long id) {
+        try {
+            utilisateurService.supprimerUtilisateur(id); // Appel de la méthode du service
+            return ResponseEntity.ok(Map.of("message", "Utilisateur supprimé avec succès."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/activation")
@@ -125,10 +148,12 @@ public class UtilisateurController {
                     @ApiResponse(responseCode = "401", description = "Refresh token invalide ou expiré")
             }
     )
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> refreshTokenRequest) {
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) {
         Map<String, String> tokens = this.jwtService.refreshToken(refreshTokenRequest);
         return ResponseEntity.ok(tokens);
     }
+
+
 
     @PostMapping("/deconnexion")
     @SecurityRequirement(name = "bearerAuth")
@@ -181,5 +206,34 @@ public class UtilisateurController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur : " + e.getMessage());
         }
     }
+    @GetMapping("/medecins/noms")
+    public ResponseEntity<List<DoctorDTO>> getNomsDesMedecins() {
+        List<DoctorDTO> medecins = utilisateurService.getNomsDesMedecins();
+        return ResponseEntity.ok(medecins);
+    }
+    // UtilisateurController.java
+    @GetMapping("/utilisateur/info-connecte")
+    public ResponseEntity<Map<String, String>> getConnectedUserInfo(Authentication authentication) {
+        Utilisateur utilisateur = (Utilisateur) authentication.getPrincipal();
+        Map<String, String> response = new HashMap<>();
+        response.put("nom", utilisateur.getNom());
+        response.put("role", utilisateur.getRole().name());
+        return ResponseEntity.ok(response);
+    }
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Mise à jour d'un utilisateur",
+            description = "Met à jour les informations d'un utilisateur existant",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Utilisateur mis à jour avec succès"),
+                    @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé")
+            }
+    )
+    public ResponseEntity<?> updateUtilisateur(@PathVariable Long id, @Valid @RequestBody PendingPersonnelDTO dto) {
+        utilisateurService.updateUtilisateur(id, dto);
+        return ResponseEntity.ok(Map.of("message", "Utilisateur mis à jour avec succès."));
+    }
+
+
 
 }

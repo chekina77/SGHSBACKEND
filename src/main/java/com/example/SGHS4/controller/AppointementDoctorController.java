@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +21,7 @@ import java.util.Map;
  * Controller unique pour gérer les rendez‑vous et la liste des médecins.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/doctor")
 @Validated
 public class AppointementDoctorController {
 
@@ -37,22 +39,6 @@ public class AppointementDoctorController {
     //---------- Création et gestion des RDV ----------
 
     /** Créer un patient + rendez‑vous */
-    @PostMapping("/appointments/create")
-    public ResponseEntity<Map<String,Object>> createAppointment(
-            @Valid @RequestBody CreateAppointmentDTO dto) {
-        Map<String,Object> resp = new HashMap<>();
-        try {
-            AppointmentResponseDTO saved = service.createAppointment(dto);
-            resp.put("success", true);
-            resp.put("message", "Rendez-vous créé avec succès");
-            resp.put("data", saved);
-            return ResponseEntity.ok(resp);
-        } catch (Exception ex) {
-            resp.put("success", false);
-            resp.put("message", "Erreur création rendez-vous : " + ex.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
-        }
-    }
 
     /** Récupérer un RDV par ID */
     @GetMapping("/appointments/{id}")
@@ -77,11 +63,12 @@ public class AppointementDoctorController {
         try {
             List<AppointmentResponseDTO> list = service.getAllAppointments();
             resp.put("success", true);
-            resp.put("data", list);
+            resp.put("data", list); // <== le frontend attend data.data
             return ResponseEntity.ok(resp);
         } catch (Exception ex) {
             resp.put("success", false);
             resp.put("message", "Erreur récupération : " + ex.getMessage());
+            resp.put("data", new ArrayList<>()); // <== éviter un champ "data" absent côté client
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
         }
     }
@@ -93,23 +80,25 @@ public class AppointementDoctorController {
         try {
             List<AppointmentResponseDTO> results = service.searchAppointments(keyword);
             resp.put("success", true);
-            resp.put("data", results);
+            resp.put("data", results); // pour correspondre au frontend
             return ResponseEntity.ok(resp);
         } catch (Exception ex) {
             resp.put("success", false);
             resp.put("message", "Erreur recherche : " + ex.getMessage());
+            resp.put("data", new ArrayList<>()); // toujours un champ "data"
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
         }
     }
 
+
     /** RDV d’un médecin pour une date */
-    @GetMapping("/appointments/doctor/{doctorId}/date")
+  /*  @GetMapping("/appointments/doctor/{doctorId}/date")
     public ResponseEntity<Map<String,Object>> getDoctorAppointmentsForDate(
             @PathVariable Long doctorId,
             @RequestParam String date) {
         Map<String,Object> resp = new HashMap<>();
         try {
-            List<AppointmentResponseDTO> list = service.getDoctorAppointmentsForDate(doctorId, date);
+            List<AppointmentResponseDTO> list = service.getDoctorAppointmentsForDate(doctorId, LocalDate.parse(date));
             resp.put("success", true);
             resp.put("data", list);
             return ResponseEntity.ok(resp);
@@ -118,7 +107,7 @@ public class AppointementDoctorController {
             resp.put("message", "Erreur récupération : " + ex.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
         }
-    }
+    }*/
 
     /** Supprimer un RDV */
     @DeleteMapping("/appointments/{id}")

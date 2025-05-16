@@ -1,29 +1,31 @@
 package com.example.SGHS4.entite;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 public class Patient {
-    @Id @GeneratedValue private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String name;
     private String surname;
     private String sexe;
     private LocalDate dateOfBirth;
-    private Double weight;
-    private Double height;
+    private double weight;
+    private double height;
     private String email;
     private String nationalIDcardnumber;
     private String phoneNumber;
     private String allergies;
     private String comment;
     private LocalDate dateOfToday;
-    @ManyToOne @JoinColumn(name="doctor_id")
-    private Doctor assignedDoctor;
+    private String medecinName;
+
+    @Column(columnDefinition = "TEXT")
+    private String fingerprintHash;
 
     public Long getId() {
         return id;
@@ -65,19 +67,19 @@ public class Patient {
         this.dateOfBirth = dateOfBirth;
     }
 
-    public Double getWeight() {
+    public double getWeight() {
         return weight;
     }
 
-    public void setWeight(Double weight) {
+    public void setWeight(double weight) {
         this.weight = weight;
     }
 
-    public Double getHeight() {
+    public double getHeight() {
         return height;
     }
 
-    public void setHeight(Double height) {
+    public void setHeight(double height) {
         this.height = height;
     }
 
@@ -129,12 +131,21 @@ public class Patient {
         this.dateOfToday = dateOfToday;
     }
 
-    public Doctor getAssignedDoctor() {
-        return assignedDoctor;
+    public String getMedecinName() {
+        return medecinName;
     }
 
-    public void setAssignedDoctor(Doctor assignedDoctor) {
-        this.assignedDoctor = assignedDoctor;
+    public void setMedecinName(String medecinName) {
+        this.medecinName = medecinName;
     }
-    // getters/setters
+
+    public String getFingerprintHash() {
+        return fingerprintHash;
+    }
+
+    public void setFingerprintHash(String fingerprintHash) {
+        this.fingerprintHash = fingerprintHash;
+    }
+
+    // Getters & setters (y compris fingerprintHash)
 }

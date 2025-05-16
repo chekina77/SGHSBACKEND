@@ -1,12 +1,14 @@
 
-        package com.example.SGHS4.service;
+package com.example.SGHS4.service;
 
 import com.example.SGHS4.dto.*;
 import com.example.SGHS4.entite.AppointementDoctor;
 import com.example.SGHS4.entite.Doctor;
 import com.example.SGHS4.entite.Patient;
+import com.example.SGHS4.entite.Utilisateur;
 import com.example.SGHS4.repository.AppointementDoctorRepository;
 import com.example.SGHS4.repository.DoctorRepository;
+import com.example.SGHS4.repository.UtilisateurRepository;
 import com.example.SGHS4.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,8 @@ public class AppointementDoctorService {
 
     @Autowired
     private PatientRepository patientRepository;
+    @Autowired
+    private UtilisateurRepository utilisateurRepository;
 
     @Autowired
     private DoctorRepository doctorRepository;
@@ -34,35 +38,50 @@ public class AppointementDoctorService {
     /**
      * Crée un patient et un rendez-vous, puis retourne un DTO de réponse.
      */
-    public AppointmentResponseDTO createAppointment(CreateAppointmentDTO dto) {
-        Doctor doc = doctorRepository.findById(dto.getDoctorId())
-                .orElseThrow(() -> new RuntimeException("Médecin introuvable"));
+    public AppointmentResponseDTO createAppointmentUsingUtilisateur(CreateAppointmentDTO dto) {
+        // 1. Enregistrer le patient
+        Patient patient = new Patient();
+        patient.setName(dto.getName());
+        patient.setSurname(dto.getSurname());
+        patient.setSexe(dto.getSexe());
+        patient.setDateOfBirth(dto.getDateOfBirth());
+        patient.setWeight(dto.getWeight());
+        patient.setHeight(dto.getHeight());
+        patient.setEmail(dto.getEmail());
+        patient.setNationalIDcardnumber(dto.getNationalIDcardnumber());
+        patient.setPhoneNumber(dto.getPhoneNumber());
+        patient.setAllergies(dto.getAllergies());
+        patient.setComment(dto.getComment());
+        patient.setDateOfToday(dto.getDateOfToday());
 
-        Patient p = new Patient();
-        p.setName(dto.getName());
-        p.setSurname(dto.getSurname());
-        p.setSexe(dto.getSexe());
-        p.setDateOfBirth(dto.getDateOfBirth());
-        p.setWeight(dto.getWeight());
-        p.setHeight(dto.getHeight());
-        p.setEmail(dto.getEmail());
-        p.setNationalIDcardnumber(dto.getNationalIDcardnumber());
-        p.setPhoneNumber(dto.getPhoneNumber());
-        p.setAllergies(dto.getAllergies());
-        p.setComment(dto.getComment());
-        p.setDateOfToday(dto.getDateOfToday());
-        p.setAssignedDoctor(doc);
-        patientRepository.save(p);
+        // 2. Récupérer le médecin depuis la table Utilisateur
+        Utilisateur medecin = utilisateurRepository.findById(dto.getDoctorId())
+                .orElseThrow(() -> new RuntimeException("Utilisateur (médecin) non trouvé avec ID : " + dto.getDoctorId()));
 
-        AppointementDoctor ap = new AppointementDoctor();
-        ap.setPatient(p);
-        ap.setDoctor(doc);
-        ap.setDate(dto.getDateOfToday().atStartOfDay());
-        ap.setStatus("alive");
-        appointementDoctorRepository.save(ap);
+        // 3. Enregistrer le patient
+        Patient savedPatient = patientRepository.save(patient);
 
-        return convertToResponseDTO(ap);
+        // 4. Créer le rendez-vous
+        AppointementDoctor appointment = new AppointementDoctor();
+        appointment.setPatientName(savedPatient.getName());
+        appointment.setAppointmentDate(savedPatient.getDateOfToday().atStartOfDay());
+        appointment.setMedecinName(medecin.getNom());
+        appointment.setUtilisateur(medecin); // Attention : il faut que ton entité AppointementDoctor ait un champ Utilisateur
+        appointment.setStatut("En attente"); // ou un autre statut par défaut
+
+
+        AppointementDoctor savedAppointment = appointementDoctorRepository.save(appointment);
+
+        // 5. Mapper en DTO de réponse
+        AppointmentResponseDTO response = new AppointmentResponseDTO();
+        response.setId(savedAppointment.getId());
+        response.setPatientName(savedAppointment.getPatientName());
+        response.setAppointmentDate(savedAppointment.getAppointmentDate());  // Utilisation de LocalDateTime
+        response.setMedecinName(savedAppointment.getMedecinName());
+
+        return response;
     }
+
 
     /**
      * Récupère un rendez-vous par ID.
@@ -86,23 +105,13 @@ public class AppointementDoctorService {
      * Recherche des rendez-vous par mot-clé (nom patient ou médecin).
      */
     public List<AppointmentResponseDTO> searchAppointments(String keyword) {
-        List<AppointementDoctor> results = (List<AppointementDoctor>) appointementDoctorRepository;
+        List<AppointementDoctor> results = appointementDoctorRepository
+                .findByPatientNameContainingIgnoreCaseOrMedecinNameContainingIgnoreCase(keyword, keyword);
         return results.stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Récupère les rendez-vous d’un médecin pour une date donnée.
-     */
-    public List<AppointmentResponseDTO> getDoctorAppointmentsForDate(Long doctorId, String date) {
-        LocalDate localDate = LocalDate.parse(date);
-        LocalDateTime start = localDate.atStartOfDay();
-        LocalDateTime end = localDate.atTime(LocalTime.MAX);
-        List<AppointementDoctor> list = appointementDoctorRepository
-                .findByDoctorIdAndDateBetween(doctorId, start, end);
-        return list.stream().map(this::convertToResponseDTO).collect(Collectors.toList());
-    }
 
     /**
      * Supprime un rendez-vous.
@@ -124,32 +133,32 @@ public class AppointementDoctorService {
     private AppointmentResponseDTO convertToResponseDTO(AppointementDoctor ap) {
         AppointmentResponseDTO dto = new AppointmentResponseDTO();
         dto.setId(ap.getId());
-        dto.setDate(ap.getDate());
-        dto.setStatus(ap.getStatus());
+        dto.setPatientName(ap.getPatientName());
 
-        // patient info
-        PatientDTO pDto = new PatientDTO();
-        pDto.setId(ap.getPatient().getId());
-        pDto.setNom(ap.getPatient().getName());
-        pDto.setPrenom(ap.getPatient().getSurname());
-        pDto.setDateNaissance(ap.getPatient().getDateOfBirth());
-        pDto.setSexe(ap.getPatient().getSexe());
-        pDto.setTelephone(ap.getPatient().getPhoneNumber());
-        pDto.setEmail(ap.getPatient().getEmail());
-        pDto.setAllergies(ap.getPatient().getAllergies());
-        pDto.setAntecedentsMedicaux(ap.getPatient().getComment());
-        pDto.setDateInscription(ap.getPatient().getDateOfToday());
-        dto.setPatient(pDto);
+        // ✅ conversion de LocalDateTime vers LocalDate
+        dto.setAppointmentDate(ap.getAppointmentDate()); // Utilisation du LocalDateTime directement
 
-        // doctor info
-        DoctorDTO dDto = new DoctorDTO();
-        dDto.setId(ap.getDoctor().getId());
-        dDto.setNom(ap.getDoctor().getNom());
-        dDto.setPrenom(ap.getDoctor().getPrenom());
-        dDto.setEmail(ap.getDoctor().getEmail());
-        dDto.setTelephone(ap.getDoctor().getTelephone());
-        dto.setDoctor(dDto);
+        dto.setMedecinName(ap.getMedecinName());
+        dto.setStatut(ap.getStatut());  // Assure-toi que ce champ existe dans le DTO
 
         return dto;
     }
+
+    /*public List<AppointmentResponseDTO> getDoctorAppointmentsForDate(Long doctorId, LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+
+        // 🔁 Récupération de l'objet Doctor à partir de son ID
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Médecin non trouvé avec ID : " + doctorId));
+
+        // ✅ Appel correct avec l'objet doctor
+        List<AppointementDoctor> appointments = appointementDoctorRepository
+                .findByUtilisateurAndAppointmentDateBetween(doctor, startOfDay, endOfDay);
+
+        return appointments.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }*/
+
 }

@@ -64,6 +64,10 @@ public class ConfigurationSecuriterApplication {
                                                 .requestMatchers(POST, "/refresh-token").permitAll()
                                                 .requestMatchers(POST, "/complete-registration").permitAll()
                                                 .requestMatchers("/envoyer-nouveau-code", "/modifier-mot-de-passe").permitAll() // <- accès public
+                                                .requestMatchers("/medecins/noms").permitAll()  // <- Ajoute ceci si ce endpoint doit être public
+                                                .requestMatchers(GET, "/utilisateur/info-connecte").permitAll()
+
+
 
 
 
@@ -71,6 +75,12 @@ public class ConfigurationSecuriterApplication {
                                                 .requestMatchers(POST, "/admin/complete-registration").permitAll()
                                                 .requestMatchers(GET, "/admin/pending-personnel/**").permitAll()
                                                 .requestMatchers(POST, "/admin/connexion").permitAll()
+                                                .requestMatchers(POST,"/api/appointments").permitAll()
+                                                .requestMatchers(POST,"/api/biometric/process-fingerprint").permitAll()
+                                                .requestMatchers(POST,"https://972e-143-105-152-40.ngrok-free.app/api/biometric**").permitAll()
+
+
+
 
                                                 // Points d'accès pour l'enregistrement
                                                 .requestMatchers("/enregistrements/enregistrer").permitAll()
@@ -78,14 +88,26 @@ public class ConfigurationSecuriterApplication {
 
                                                 // Protections par rôle
                                                 .requestMatchers("/admin/**").hasRole("ADMINISTRATEUR") // Rôle ADMIN pour les routes /admin
-                                                .requestMatchers("/api/patient/**").hasAnyRole("INFIRMIER", "MEDECIN", "ADMINISTRATEUR")
-                                                .requestMatchers("/api/patient/**").hasAnyRole("INFIRMIER", "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
-                                                .requestMatchers("/api/patient").hasAuthority("ROLE_ADMINISTRATEUR")
+                                                .requestMatchers("/api/patient/**").hasAnyRole( "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
+                                                .requestMatchers("/api/appointments/all").hasAuthority("ROLE_ADMINISTRATEUR")
+                                                .requestMatchers(GET,"/api/appointments/enregistrements/rendezvous").hasAnyRole( "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
+                                                .requestMatchers(POST,"/api/consultations").hasAnyRole("MEDECIN","ADMINISTRATEUR")
+                                                .requestMatchers("/api/livret/create").hasAnyRole("MEDECIN","ADMINISTRATEUR")
+                                                .requestMatchers(GET,"/api/consultations").hasAnyRole("MEDECIN","ADMINISTRATEUR")
+
+
+
+
+
+
+
 
 
 
 
                                                 .requestMatchers("/api/medecin/**").hasRole("MEDECIN") // Routes réservées aux médecins
+                                                .requestMatchers("/api/medecin/**").hasRole("MEDECIN") // Routes réservées aux médecins
+
 
                                                 // Par défaut, toutes les autres requêtes nécessitent une authentification
                                                 .anyRequest().authenticated()
@@ -97,6 +119,7 @@ public class ConfigurationSecuriterApplication {
                         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // Filtre JWT avant l'authentification par défaut
                         .build();
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
@@ -116,7 +139,9 @@ public class ConfigurationSecuriterApplication {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Liste des origines autorisées (à ajuster selon vos besoins)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "https://votre-domaine-production.com"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5174",        "https://d2be-143-105-152-40.ngrok-free.app"
+                // <= Ajoute ceci !
+        ));
 
         // Autoriser toutes les méthodes HTTP nécessaires
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -3,6 +3,7 @@ package com.example.SGHS4.service;
 import com.example.SGHS4.dto.AuthentificationDTO;
 import com.example.SGHS4.dto.PendingPersonnelDTO;
 import com.example.SGHS4.dto.RegistrationCompletionDTO;
+import com.example.SGHS4.dto.UtilisateurDTO;
 import com.example.SGHS4.entite.Validation;
 import com.example.SGHS4.repository.ValidationRepository;
 
@@ -34,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -193,6 +195,9 @@ public class AdminService {
         return "Inscription réussie et utilisateur créé.";
     }
 
+
+
+
     @Transactional
     public Map<String, String> connexion(AuthentificationDTO dto) {
         Utilisateur u = utilisateurRepository.findByEmail(dto.email())
@@ -218,9 +223,6 @@ public class AdminService {
                 .orElseThrow(() -> new ValidationException("Aucun personnel temporaire avec cette CNI."));
     }
 
-    public List<PendingPersonnel> getAllPersonnel() {
-        return pendingPersonnelRepository.findAll();
-    }
 
     @Transactional
     public void resetVerificationCode(String cni) {
@@ -296,5 +298,40 @@ public class AdminService {
             e.printStackTrace();
         }
     }
+
+    public List<UtilisateurDTO> getAllPersonnel() {
+        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER);
+
+        List<Utilisateur> personnels = utilisateurRepository.findByRoleIn(roles);
+
+        return personnels.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+    public List<UtilisateurDTO> searchPersonnel(String keyword) {
+        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER);
+
+        List<Utilisateur> personnels = utilisateurRepository.searchByRoleAndKeyword(roles, keyword);
+
+        return personnels.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+
+
+    private UtilisateurDTO convertToDTO(Utilisateur utilisateur) {
+        UtilisateurDTO dto = new UtilisateurDTO();
+        dto.setId(utilisateur.getId());
+        dto.setNom(utilisateur.getNom());
+        dto.setEmail(utilisateur.getEmail());
+        dto.setTelephone(utilisateur.getTelephone());
+        dto.setCni(utilisateur.getCni()); // ✅ AJOUT ICI
+
+
+        dto.setRole(utilisateur.getRole());
+        return dto;
+    }
+
 }
 

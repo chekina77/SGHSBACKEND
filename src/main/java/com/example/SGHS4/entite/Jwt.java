@@ -12,12 +12,12 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.*;
 
 @Entity
-@Table
+@Table(name = "jwt")
 public class Jwt {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
 
     private String value;
     private boolean desactive;
@@ -33,65 +33,31 @@ public class Jwt {
 
     public Jwt() {}
 
-    public Jwt(int id, String value, boolean desactive, boolean expire, Utilisateur utilisateur) {
-        this.id = id;
-        this.value = value;
-        this.desactive = desactive;
-        this.expire = expire;
-        this.utilisateur = utilisateur;
-    }
+    public String getValue() { return value; }
+    public void setValue(String value) { this.value = value; }
 
-    public int getId() {
-        return id;
-    }
+    public boolean isDesactive() { return desactive; }
+    public void setDesactive(boolean desactive) { this.desactive = desactive; }
 
-    public void setId(int id) {
-        this.id = id;
-    }
+    public boolean isExpire() { return expire; }
+    public void setExpire(boolean expire) { this.expire = expire; }
 
-    public String getValue() {
-        return value;
-    }
+    public Utilisateur getUtilisateur() { return utilisateur; }
+    public void setUtilisateur(Utilisateur utilisateur) { this.utilisateur = utilisateur; }
 
-    public void setValue(String value) {
-        this.value = value;
-    }
-
-    public boolean isDesactive() {
-        return desactive;
-    }
-
-    public void setDesactive(boolean desactive) {
-        this.desactive = desactive;
-    }
-
-    public boolean isExpire() {
-        return expire;
-    }
-
-    public void setExpire(boolean expire) {
-        this.expire = expire;
-    }
-
-    public Utilisateur getUtilisateur() {
-        return utilisateur;
-    }
-
-    public void setUtilisateur(Utilisateur utilisateur) {
-        this.utilisateur = utilisateur;
-    }
+    public RefreshToken getRefreshToken() { return refreshToken; }
+    public void setRefreshToken(RefreshToken refreshToken) { this.refreshToken = refreshToken; }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public RefreshToken getRefreshToken() { return refreshToken; }
-    public void setRefreshToken(RefreshToken refreshToken) { this.refreshToken =refreshToken;}
     public static class Builder {
         private String value;
         private boolean desactive;
         private boolean expire;
         private Utilisateur utilisateur;
+        private RefreshToken refreshToken;
 
         public Builder value(String value) {
             this.value = value;
@@ -113,12 +79,18 @@ public class Jwt {
             return this;
         }
 
+        public Builder refreshToken(RefreshToken refreshToken) {
+            this.refreshToken = refreshToken;
+            return this;
+        }
+
         public Jwt build() {
             Jwt jwt = new Jwt();
             jwt.setValue(value);
             jwt.setDesactive(desactive);
             jwt.setExpire(expire);
             jwt.setUtilisateur(utilisateur);
+            jwt.setRefreshToken(refreshToken);
             return jwt;
         }
     }

@@ -52,4 +52,5 @@ public class PatientDoctorController {
         List<PatientDoctor> result = patientDoctorService.searchPatientDoctors(keyword);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
+
 }

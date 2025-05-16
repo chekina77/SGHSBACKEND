@@ -1,5 +1,6 @@
 package com.example.SGHS4.service;
 
+import com.example.SGHS4.dto.RefreshTokenRequest;
 import com.example.SGHS4.entite.Jwt;
 import com.example.SGHS4.entite.RefreshToken;
 import com.example.SGHS4.entite.Utilisateur;
@@ -39,7 +40,7 @@ public class JwtService {
     @Value("${jwt.expiration.bearer:3600000}") // 1 heure par défaut
     private long bearerExpirationMs;
 
-    @Value("${jwt.expiration.refresh:1800000}") // 30 minutes par défaut
+    @Value("${jwt.expiration.refresh:86400000}") //  24 heures par défaut
     private long refreshExpirationMs;
 
     private final UtilisateurService utilisateurService;
@@ -111,9 +112,9 @@ public class JwtService {
         try {
             return this.getClaim(token, Claims::getSubject);
         } catch (ExpiredJwtException e) {
-            throw new TokenExpireException("Le token JWT est expiré");
+            throw new TokenExpireException("Le token JWT a expiré, veuillez vous reconnecter.");
         } catch (JwtException e) {
-            throw new TokenInvalideException("Le token JWT est invalide");
+            throw new TokenInvalideException("Le token JWT est invalide.");
         }
     }
 
@@ -125,7 +126,7 @@ public class JwtService {
         } catch (ExpiredJwtException e) {
             return true;
         } catch (JwtException e) {
-            throw new TokenInvalideException("Le token JWT est invalide");
+            throw new TokenInvalideException("Le token JWT est invalide.");
         }
     }
 
@@ -147,7 +148,7 @@ public class JwtService {
                     .getBody();
         } catch (JwtException e) {
             logger.error("Erreur lors de l'analyse du JWT", e);
-            throw e;
+            throw new TokenInvalideException("Le token JWT est invalide.");
         }
     }
 
@@ -201,14 +202,14 @@ public class JwtService {
             SecurityContextHolder.clearContext();
         } catch (Exception e) {
             logger.error("Erreur lors de la déconnexion", e);
-            throw new RuntimeException("Erreur lors de la déconnexion: " + e.getMessage());
+            throw new RuntimeException("Erreur lors de la déconnexion.");
         }
     }
 
     // Suppression des tokens expirés ou inutiles
     @Scheduled(cron = "${jwt.cleanup.cron:0 0 0 * * ?}") // Par défaut: tous les jours à minuit
     public void removeUselessJwt() {
-        logger.info("Suppression des tokens expirés " + Instant.now());
+        logger.info("Suppression des tokens expirés à " + Instant.now());
         try {
             long count = this.jwtRepository.deleteAllByExpireAndDesactive(true, true);
             logger.info("{} tokens supprimés", count);
@@ -218,13 +219,13 @@ public class JwtService {
     }
 
     // Rafraîchir le token
-    public Map<String, String> refreshToken(Map<String, String> refreshTokenRequest) {
-        if (!refreshTokenRequest.containsKey(REFRESH)) {
+    public Map<String, String> refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        if (refreshTokenRequest.getRefreshToken() == null || refreshTokenRequest.getRefreshToken().isEmpty()) {
             throw new TokenInvalideException("Refresh token manquant");
         }
 
-        final Jwt jwt = this.jwtRepository.findByRefreshToken(refreshTokenRequest.get(REFRESH))
-                .orElseThrow(() -> new TokenInvalideException(TOKEN_INVALIDE));
+        final Jwt jwt = this.jwtRepository.findByRefreshToken(refreshTokenRequest.getRefreshToken())
+                .orElseThrow(() -> new TokenInvalideException("Refresh token invalide"));
 
         // Vérifier que le refresh token est valide
         if (jwt.getRefreshToken().isExpire() || jwt.getRefreshToken().getExpiration().isBefore(Instant.now())) {

@@ -1,5 +1,6 @@
 package com.example.SGHS4.entite;
 
+import com.example.SGHS4.enums.TypeDeRole;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -38,6 +39,9 @@ public class Doctor {
     /** Horodatage de dernière mise à jour (automatique) */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    @Enumerated(EnumType.STRING)
+    private TypeDeRole typeDeRole;
+
 
     public Doctor() {
         // constructeur pour JPA

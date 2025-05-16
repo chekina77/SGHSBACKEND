@@ -1,5 +1,6 @@
 package com.example.SGHS4.service;
 
+import com.example.SGHS4.entite.Consultation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -72,5 +73,19 @@ public class EmailService {
             System.err.println("Erreur lors de l'envoi de l'e-mail de réinitialisation : " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    public void sendConsultationEmail(Consultation consultation) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo("doctor@example.com"); // L'adresse email du médecin
+        message.setSubject("Nouvelle Consultation Médicale");
+        message.setText(
+                "Consultation de " + consultation.getName() + " " + consultation.getSurname() + ":\n\n" +
+                        "Symptômes: " + consultation.getSymptome() + "\n" +
+                        "Diagnostic: " + consultation.getDiagnostique() + "\n" +
+                        "Ordonnance: " + consultation.getOrdonnance() + "\n" +
+                        "Commentaires: " + consultation.getCommentaire() + "\n" +
+                        "Date de consultation: " + consultation.getConsultationDate()
+        );
+        mailSender.send(message);
     }
 }
