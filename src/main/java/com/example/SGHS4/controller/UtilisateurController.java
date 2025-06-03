@@ -125,12 +125,13 @@ public class UtilisateurController {
 
             // Créer la réponse
             JwtResponseDTO response = new JwtResponseDTO(
-                    tokenMap.get("bearer"),
-                    tokenMap.get("refresh"),
-                    utilisateur.getEmail(),
-                    utilisateur.getNom(),
-                    roles
-            );
+                                tokenMap.get("bearer"),
+                                tokenMap.get("refresh"),
+                                utilisateur.getEmail(),
+                                utilisateur.getNom(),
+                    roles,
+                    utilisateur.getId()
+                        );
 
             return ResponseEntity.ok(response);
         } else {
@@ -169,7 +170,7 @@ public class UtilisateurController {
         this.jwtService.deconnexion();
         return ResponseEntity.ok(Map.of("message", "Déconnexion réussie"));
     }
-
+           
     /**
      * Modifie le mot de passe de l'utilisateur connecté
      */

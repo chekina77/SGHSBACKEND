@@ -2,6 +2,8 @@ package com.example.SGHS4.repository;
 
 import com.example.SGHS4.entite.Appointment;
 import com.example.SGHS4.entite.Appointment;
+import com.example.SGHS4.entite.Patient;
+import com.example.SGHS4.entite.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

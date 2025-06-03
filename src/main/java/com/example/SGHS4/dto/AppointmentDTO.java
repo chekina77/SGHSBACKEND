@@ -1,6 +1,8 @@
 package com.example.SGHS4.dto;
 
+import com.example.SGHS4.entite.AppointementDoctor;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public class AppointmentDTO {
@@ -27,12 +29,31 @@ public class AppointmentDTO {
         this.appointmentDate = appointmentDate;
     }
 
-    // Pour getRendezvous()
     public AppointmentDTO(Long id, String patientName, LocalDateTime appointmentDate) {
         this.id = id;
         this.patientName = patientName;
         this.appointmentDate = appointmentDate;
     }
+    private AppointmentDTO convertToDTO(AppointementDoctor entity) {
+        AppointmentDTO dto = new AppointmentDTO();
+        dto.setId(entity.getId());
+        dto.setPatientName(entity.getPatientName());
+        dto.setDoctor(entity.getMedecinName());
+        dto.setStatus(entity.getStatut());
+        dto.setAppointmentDate(entity.getAppointmentDate());
+
+        // Comme tu n'as pas de patientId ni doctorId directement dans l'entité,
+        // on les laisse à null ou tu peux les récupérer si tu as accès à l'entité utilisateur (medecin)
+        // Par exemple, si Utilisateur représente le medecin connecté :
+        if (entity.getUtilisateur() != null) {
+            dto.setDoctorId(entity.getUtilisateur().getId()); // si getId() existe dans Utilisateur
+        }
+        // PatientId non dispo ici, donc null
+        dto.setPatientId(null);
+
+        return dto;
+    }
+
 
     // Getters & Setters
     public Long getId() { return id; }

@@ -12,6 +12,7 @@ public class PatientDTO {
     private LocalDate dateOfBirth;
     private Double weight;
     private Double height;
+
     private String email;
     private String nationalIDCardNumber;
     private String phoneNumber;
@@ -19,12 +20,20 @@ public class PatientDTO {
     private String comment;
     private LocalDate dateOfToday;
     private String medecinName;
-    private String fingerprintHash; // Encodée en base64 ou hexadécimal
+    private String action;  // Nouvel attribut pour le lien d'action ou autre
 
-
+    private String cniKey;  // Ajouté : clé CNI pour chiffrement/déchiffrement
 
     // Constructeur vide pour Jackson
     public PatientDTO() {}
+    // constructeur
+    public PatientDTO(Long id, String name, String surname, String email, String phoneNumber) {
+        this.id = id;
+        this.name = name;
+        this.surname = surname;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+    }
 
     /**
      * Constructeur partiel utilisé pour lister dans le tableau.
@@ -58,7 +67,9 @@ public class PatientDTO {
                       String allergies,
                       String comment,
                       LocalDate dateOfToday,
-                      String medecinName) {
+                      String medecinName,
+                      String action,
+                      String cniKey) {
         this.id = id;
         this.name = name;
         this.surname = surname;
@@ -73,7 +84,16 @@ public class PatientDTO {
         this.comment = comment;
         this.dateOfToday = dateOfToday;
         this.medecinName = medecinName;
+        this.action = action;
+        this.cniKey = cniKey;
     }
+
+    public PatientDTO(Long id, String name, String surname) {
+        this.id = id;
+        this.name = name;
+        this.surname = surname;
+    }
+
 
     // ─── Getters & Setters ──────────────────────────────────────────────────────
 
@@ -121,11 +141,10 @@ public class PatientDTO {
     public String getMedecinName() { return medecinName; }
     public void setMedecinName(String medecinName) { this.medecinName = medecinName; }
 
-    public String getFingerprintHash() {
-        return fingerprintHash;
-    }
+    public String getAction() { return action; }
+    public void setAction(String action) { this.action = action; }
 
-    public void setFingerprintHash(String fingerprintHash) {
-        this.fingerprintHash = fingerprintHash;
-    }
+    public String getCniKey() { return cniKey; }
+    public void setCniKey(String cniKey) { this.cniKey = cniKey; }
+
 }

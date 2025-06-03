@@ -149,13 +149,16 @@ public class AdminController {
         try {
             Map<String, String> tokens = adminService.connexion(authenticationDTO);
 
-            // Si nécessaire, créer un DTO structuré pour la réponse JWT
+            // Récupérer l'admin complet (avec id, nom, etc.) depuis un service
+            Utilisateur admin = adminService.findByEmail(authenticationDTO.email());
+
             JwtResponseDTO response = new JwtResponseDTO(
                     tokens.get("bearer"),
                     tokens.get("refresh"),
-                    authenticationDTO.email(),
-                    null, // nom (pourrait être récupéré du service)
-                    Collections.singletonList("ROLE_ADMIN")
+                    admin.getEmail(),
+                    admin.getNom(),
+                    Collections.singletonList("ROLE_ADMIN"),
+                    admin.getId()
             );
 
             return ResponseEntity.ok(response);

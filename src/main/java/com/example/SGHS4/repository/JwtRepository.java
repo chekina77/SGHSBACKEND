@@ -97,5 +97,7 @@ public interface JwtRepository extends JpaRepository<Jwt, Long> {
     @Query("UPDATE Jwt j SET j.expire = true, j.desactive = true WHERE j.utilisateur.email = :email")
     int invalidateAllTokensForUser(@Param("email") String email);
     List<Jwt> findByUtilisateur(Utilisateur utilisateur);
+    Optional<Jwt> findByValue(String value);
+
 
 }

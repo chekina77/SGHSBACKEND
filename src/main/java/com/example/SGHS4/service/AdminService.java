@@ -222,6 +222,11 @@ public class AdminService {
         return pendingPersonnelRepository.findByCni(cni)
                 .orElseThrow(() -> new ValidationException("Aucun personnel temporaire avec cette CNI."));
     }
+    public Utilisateur findByEmail(String email) {
+        return utilisateurRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Aucun utilisateur ne correspond à cet e-mail."));
+    }
+
 
 
     @Transactional
@@ -300,7 +305,7 @@ public class AdminService {
     }
 
     public List<UtilisateurDTO> getAllPersonnel() {
-        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER);
+        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER, TypeDeRole.LABORANTIN);
 
         List<Utilisateur> personnels = utilisateurRepository.findByRoleIn(roles);
 
@@ -309,7 +314,7 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
     public List<UtilisateurDTO> searchPersonnel(String keyword) {
-        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER);
+        List<TypeDeRole> roles = List.of(TypeDeRole.MEDECIN, TypeDeRole.INFIRMIER, TypeDeRole.LABORANTIN);
 
         List<Utilisateur> personnels = utilisateurRepository.searchByRoleAndKeyword(roles, keyword);
 
@@ -332,6 +337,7 @@ public class AdminService {
         dto.setRole(utilisateur.getRole());
         return dto;
     }
+
 
 }
 

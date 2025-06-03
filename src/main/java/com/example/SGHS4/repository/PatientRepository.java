@@ -1,6 +1,7 @@
 package com.example.SGHS4.repository;
 
 import com.example.SGHS4.entite.Patient;
+import com.example.SGHS4.entite.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,18 +13,26 @@ import java.util.Optional;
 
 @Repository
 public interface PatientRepository extends JpaRepository<Patient, Long> {
-    Optional<Patient> findByFingerprintHash(String fingerprintHash);
+
+    /*Optional<Patient> findByFingerprintHash(String fingerprintHash);*/
+    Optional<Patient> findByEncryptedCNI(String encryptedCNI);
+
 
 
     // Trouve un patient par son numéro de carte d'identité
-    Optional<Patient> findByNationalIDcardnumber(String nationalIDcardnumber);
 
     // Vérifie si un patient existe avec le numéro de carte d'identité donné
-    boolean existsByNationalIDcardnumber(String nationalIDcardnumber);
+    boolean existsByEncryptedCNI(String encryptedCNI);
 
     // Recherche des patients par nom ou prénom (insensible à la casse)
     List<Patient> findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(String name, String surname);
     Optional<Patient> findByNameAndSurname(String name, String surname);
+    Optional<Patient> findByUtilisateur(Utilisateur utilisateur);
+    Optional<Patient> findByUtilisateurId(Long utilisateurId);
+    @Query("SELECT CONCAT(p.name, ' ', p.surname) FROM Patient p")
+    List<String> findAllPatientFullNames();
+
+
 
 
     // Trouve des patients nés avant une date donnée
@@ -33,12 +42,13 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     @Query("SELECT p FROM Patient p WHERE " +
             "(:nom IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :nom, '%'))) AND " +
             "(:prenom IS NULL OR LOWER(p.surname) LIKE LOWER(CONCAT('%', :prenom, '%'))) AND " +
-            "(:nationalIDcardnumber IS NULL OR p.nationalIDcardnumber = :nationalIDcardnumber)")
+            "(:encryptedCNI IS NULL OR p.encryptedCNI = :encryptedCNI)")
     List<Patient> searchPatients(
             @Param("nom") String nom,
             @Param("prenom") String prenom,
-            @Param("nationalIDcardnumber") String nationalIDcardnumber
+            @Param("encryptedCNI") String encryptedCNI
     );
+
 
     // Trouve des patients avec une allergie spécifique
     @Query("SELECT p FROM Patient p WHERE LOWER(p.allergies) LIKE LOWER(CONCAT('%', :allergie, '%'))")

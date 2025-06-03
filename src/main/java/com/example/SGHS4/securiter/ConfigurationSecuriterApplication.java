@@ -22,20 +22,22 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.springframework.http.HttpMethod.POST;
-import static org.springframework.http.HttpMethod.GET;
-import static org.springframework.http.HttpMethod.PUT;
-import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.*;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class ConfigurationSecuriterApplication {
+
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final JwtFilter jwtFilter;
     private final UserDetailsService userDetailsService;
 
-    public ConfigurationSecuriterApplication(BCryptPasswordEncoder bCryptPasswordEncoder, JwtFilter jwtFilter, UserDetailsService userDetailsService) {
+    public ConfigurationSecuriterApplication(
+            BCryptPasswordEncoder bCryptPasswordEncoder,
+            JwtFilter jwtFilter,
+            UserDetailsService userDetailsService
+    ) {
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.jwtFilter = jwtFilter;
         this.userDetailsService = userDetailsService;
@@ -43,60 +45,66 @@ public class ConfigurationSecuriterApplication {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-        return
-                httpSecurity
-                        .csrf(AbstractHttpConfigurer::disable) // Pour les API REST, le CSRF n'est généralement pas nécessaire
-                        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                        .authorizeHttpRequests(
-                                authorize ->
-                                        authorize
-                                                // Documentation API
-                                                .requestMatchers(
-                                                        "/v3/api-docs/**",
-                                                        "/swagger-ui/**",
-                                                        "/swagger-ui.html"
-                                                ).permitAll()
+        return httpSecurity
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(authorize -> authorize
+                        // Documentation publique
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                                                // Endpoints d'authentification publics
-                                                .requestMatchers(POST, "/inscription").permitAll()
-                                                .requestMatchers(POST, "/activation").permitAll()
-                                                .requestMatchers(POST, "/connexion").permitAll()
-                                                .requestMatchers(POST, "/refresh-token").permitAll()
-                                                .requestMatchers(POST, "/complete-registration").permitAll()
-                                                .requestMatchers("/envoyer-nouveau-code", "/modifier-mot-de-passe").permitAll() // <- accès public
-                                                .requestMatchers("/medecins/noms").permitAll()  // <- Ajoute ceci si ce endpoint doit être public
-                                                .requestMatchers(GET, "/utilisateur/info-connecte").permitAll()
+                        // Auth publique
+                        .requestMatchers(
+                                POST, "/inscription", "/activation", "/connexion","/deconnexion", "/refresh-token",
+                                "/complete-registration", "/admin/complete-registration", "/admin/connexion",
+                                "/api/appointments", "/api/appointments/empreinte","/envoyer-nouveau-code"
+                        ).permitAll()
+                        .requestMatchers(GET, "/api/appointments/empreinte").permitAll()
 
+                        .requestMatchers("/envoyer-nouveau-code", "/modifier-mot-de-passe").permitAll()
+                        .requestMatchers("/ws-labresult/**").permitAll() // ou antMatchers selon version
 
+                        .requestMatchers(GET, "/utilisateur/info-connecte").permitAll()
+                        .requestMatchers("/medecins/noms").permitAll()
+                        .requestMatchers(GET, "/api/patient/decrypted-names").permitAll()
 
+                        .requestMatchers("/enregistrements/enregistrer", "/enregistrements/allenregistrer").permitAll()
 
+                        // Endpoints ngrok
+                        .requestMatchers(POST, "https://972e-143-105-152-40.ngrok-free.app/api/biometric**").permitAll()
 
-                                                // Admin registration endpoints
-                                                .requestMatchers(POST, "/admin/complete-registration").permitAll()
-                                                .requestMatchers(GET, "/admin/pending-personnel/**").permitAll()
-                                                .requestMatchers(POST, "/admin/connexion").permitAll()
-                                                .requestMatchers(POST,"/api/appointments").permitAll()
-                                                .requestMatchers(POST,"/api/biometric/process-fingerprint").permitAll()
-                                                .requestMatchers(POST,"https://972e-143-105-152-40.ngrok-free.app/api/biometric**").permitAll()
+                        // Admin uniquement
+                        .requestMatchers("/admin/**").hasRole("ADMINISTRATEUR")
 
-
-
-
-                                                // Points d'accès pour l'enregistrement
-                                                .requestMatchers("/enregistrements/enregistrer").permitAll()
-                                                .requestMatchers("/enregistrements/allenregistrer").permitAll()
-
-                                                // Protections par rôle
-                                                .requestMatchers("/admin/**").hasRole("ADMINISTRATEUR") // Rôle ADMIN pour les routes /admin
-                                                .requestMatchers("/api/patient/**").hasAnyRole( "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
-                                                .requestMatchers("/api/appointments/all").hasAuthority("ROLE_ADMINISTRATEUR")
-                                                .requestMatchers(GET,"/api/appointments/enregistrements/rendezvous").hasAnyRole( "MEDECIN", "ADMINISTRATEUR") // Routes patients accessibles par INFIRMIER et MEDECIN// Routes patients accessibles par INFIRMIER et MEDECIN
-                                                .requestMatchers(POST,"/api/consultations").hasAnyRole("MEDECIN","ADMINISTRATEUR")
-                                                .requestMatchers("/api/livret/create").hasAnyRole("MEDECIN","ADMINISTRATEUR")
-                                                .requestMatchers(GET,"/api/consultations").hasAnyRole("MEDECIN","ADMINISTRATEUR")
+                        // Medecins & Admin
+                        .requestMatchers("/api/patient/**").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET, "/admin/pending-personnel/**").permitAll()
+                        .requestMatchers(GET, "/api/appointments/enregistrements/rendezvous").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(POST, "/api/consultations", "/api/livret/create").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET, "/api/consultations").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/appointments/all").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/appointments/appointment-utilisateur").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/appointments/{id}/decrypted").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/appointments/all-patients").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
 
 
 
+                        .requestMatchers(POST,"/api/consultations/decrypt").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                                .requestMatchers(GET,"/api/consultations/patient/{patientId}").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+
+                                .requestMatchers(POST,"/api/consultations").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(POST,"/api/livret/create").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(POST,"/api/patient/patient/{PatientId}").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/livret/me").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/livret/all").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/livret/patient").hasAnyRole("MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/resultats-tests/envoyer/{id}").hasAnyRole("LABORANTIN","MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(POST,"/api/resultats-tests/enregistrer").hasAnyRole("LABORANTIN","MEDECIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"/api/resultats-tests/envoyes").hasAnyRole("LABORANTIN", "ADMINISTRATEUR")
+                        // Résultats de laboratoire : accessibles par ADMIN et LABORANTIN
+                        .requestMatchers(POST, "/api/labresults").hasAnyRole("LABORANTIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET, "/labresults/patient/**").hasAnyRole("LABORANTIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET, "/api/labresults").hasAnyRole("LABORANTIN", "ADMINISTRATEUR")
+                        .requestMatchers(GET,"api/labresults/patient/{patientId}").hasAnyRole("LABORANTIN", "ADMINISTRATEUR","MEDECIN")
 
 
 
@@ -105,69 +113,53 @@ public class ConfigurationSecuriterApplication {
 
 
 
-                                                .requestMatchers("/api/medecin/**").hasRole("MEDECIN") // Routes réservées aux médecins
-                                                .requestMatchers("/api/medecin/**").hasRole("MEDECIN") // Routes réservées aux médecins
 
 
-                                                // Par défaut, toutes les autres requêtes nécessitent une authentification
-                                                .anyRequest().authenticated()
-                        )
-                        .sessionManagement(session ->
-                                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Pas de session côté serveur
-                        )
-                        .authenticationProvider(authenticationProvider())
-                        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // Filtre JWT avant l'authentification par défaut
-                        .build();
+
+
+                        // Medecin uniquement
+                        .requestMatchers("/api/medecin/**").hasRole("MEDECIN")
+
+                        // Toutes les autres requêtes nécessitent une authentification
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
     }
 
-
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setUserDetailsService(userDetailsService);
-        daoAuthenticationProvider.setPasswordEncoder(bCryptPasswordEncoder);
-        return daoAuthenticationProvider;
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(bCryptPasswordEncoder);
+        return provider;
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Liste des origines autorisées (à ajuster selon vos besoins)
-        configuration.setAllowedOrigins(List.of("http://localhost:5174",        "https://d2be-143-105-152-40.ngrok-free.app"
-                // <= Ajoute ceci !
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://d2be-143-105-152-40.ngrok-free.app"
         ));
-
-        // Autoriser toutes les méthodes HTTP nécessaires
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-
-        // Autoriser tous les en-têtes standards
         configuration.setAllowedHeaders(Arrays.asList(
-                "Origin",
-                "Content-Type",
-                "Accept",
-                "Authorization",
-                "X-Requested-With"
+                "Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"
         ));
-
-        // En-têtes exposés au client
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
-
-        // Durée de préflight en secondes (86400 = 24h)
         configuration.setMaxAge(86400L);
-
-        // Les cookies ne sont pas envoyés dans cette application
         configuration.setAllowCredentials(false);
 
-        // Appliquer cette configuration à toutes les routes
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }

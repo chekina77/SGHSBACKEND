@@ -74,7 +74,7 @@ public class EmailService {
             e.printStackTrace();
         }
     }
-    public void sendConsultationEmail(Consultation consultation) {
+   /* public void sendConsultationEmail(Consultation consultation) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo("doctor@example.com"); // L'adresse email du médecin
         message.setSubject("Nouvelle Consultation Médicale");
@@ -87,5 +87,5 @@ public class EmailService {
                         "Date de consultation: " + consultation.getConsultationDate()
         );
         mailSender.send(message);
-    }
+    }*/
 }

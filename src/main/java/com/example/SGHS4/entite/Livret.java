@@ -18,6 +18,8 @@ public class Livret {
     private String ordonnance;
     private String commentaire;
     private LocalDate consultationDate;
+    private int viewCount = 0;  // compteur de consultation
+
 
     @ManyToOne
     @JsonIgnore  // Ne pas exposer les informations du médecin dans le JSON
@@ -96,4 +98,14 @@ public class Livret {
         this.consultations = consultations;
     }
     // getters & setters...
+
+
+    public int getViewCount() {
+        return viewCount;
+    }
+
+    public void setViewCount(int viewCount) {
+        this.viewCount = viewCount;
+    }
+
 }

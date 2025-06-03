@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -187,24 +188,29 @@ public class JwtService {
     // Déconnexion et désactivation du token
     public void deconnexion() {
         try {
-            Utilisateur utilisateur = (Utilisateur) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            Jwt jwt = this.jwtRepository.findUtilisateurValidToken(
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                throw new TokenInvalideException("Utilisateur non authentifié.");
+            }
+
+            Utilisateur utilisateur = (Utilisateur) authentication.getPrincipal();
+            Jwt jwt = jwtRepository.findUtilisateurValidToken(
                     utilisateur.getEmail(),
                     false,
                     false
-            ).orElseThrow(() -> new TokenInvalideException(TOKEN_INVALIDE));
+            ).orElseThrow(() -> new TokenInvalideException("Token invalide ou non trouvé."));
 
             jwt.setExpire(true);
             jwt.setDesactive(true);
-            this.jwtRepository.save(jwt);
+            jwtRepository.save(jwt);
 
-            // Effacer le contexte de sécurité
             SecurityContextHolder.clearContext();
         } catch (Exception e) {
             logger.error("Erreur lors de la déconnexion", e);
             throw new RuntimeException("Erreur lors de la déconnexion.");
         }
     }
+
 
     // Suppression des tokens expirés ou inutiles
     @Scheduled(cron = "${jwt.cleanup.cron:0 0 0 * * ?}") // Par défaut: tous les jours à minuit

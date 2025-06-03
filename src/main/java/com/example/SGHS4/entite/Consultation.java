@@ -18,19 +18,24 @@ public class Consultation {
     private String diagnostique;
     private String ordonnance;
     private String commentaire;
+
+    @Column(name = "consultation_date")
     private LocalDate consultationDate;
 
     @ManyToOne
     @JoinColumn(name = "doctor_id", referencedColumnName = "id")
-    @JsonIgnore // n'expose pas les informations du médecin dans le JSON
+    @JsonIgnore
     private Utilisateur doctor;
 
     @ManyToOne
-    @JoinColumn(name = "livret_id")
-    @JsonBackReference // empêche la récursion infinie lors de la sérialisation
-    private Livret livret;
+    @JoinColumn(name = "patient_id")
+    @JsonIgnore
+    private Patient patient;
 
-    // Getters et Setters
+    @ManyToOne
+    @JoinColumn(name = "livret_id")
+    @JsonBackReference
+    private Livret livret;
 
     public Long getId() {
         return id;
@@ -104,6 +109,14 @@ public class Consultation {
         this.doctor = doctor;
     }
 
+    public Patient getPatient() {
+        return patient;
+    }
+
+    public void setPatient(Patient patient) {
+        this.patient = patient;
+    }
+
     public Livret getLivret() {
         return livret;
     }
@@ -111,4 +124,6 @@ public class Consultation {
     public void setLivret(Livret livret) {
         this.livret = livret;
     }
+
+// getters et setters pour tous les champs, notamment patient et consultationDate
 }

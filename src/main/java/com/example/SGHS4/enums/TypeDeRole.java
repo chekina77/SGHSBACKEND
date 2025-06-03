@@ -6,7 +6,6 @@ public enum TypeDeRole {
     UTILISATEUR,
     ADMINISTRATEUR,
     MEDECIN,
-    INFIRMIER;
-
-
+    INFIRMIER,
+    LABORANTIN;  // Nouveau rôle ajouté
 }

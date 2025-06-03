@@ -9,14 +9,18 @@ public class JwtResponseDTO {
     private String email;
     private String nom;
     private List<String> roles;
+    private Long id;  // <-- Ajout de l'id
+
 
     // Constructeur
-    public JwtResponseDTO(String token, String refreshToken, String email, String nom, List<String> roles) {
+    public JwtResponseDTO(String token, String refreshToken, String email, String nom, List<String> roles,Long id) {
         this.token = token;
         this.refreshToken = refreshToken;
         this.email = email;
         this.nom = nom;
         this.roles = roles;
+        this.id = id;
+
     }
 
     // Getters et Setters
@@ -58,5 +62,12 @@ public class JwtResponseDTO {
 
     public void setRoles(List<String> roles) {
         this.roles = roles;
+    }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 }

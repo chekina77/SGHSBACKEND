@@ -4,20 +4,21 @@ import com.example.SGHS4.entite.Jwt;
 import com.example.SGHS4.exceptions.TokenInvalideException;
 import com.example.SGHS4.service.JwtService;
 import com.example.SGHS4.service.UtilisateurService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -30,9 +31,9 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private List<String> publicPaths;
 
-    // ✅ Ajout explicite de chemins publics supplémentaires
     private static final List<String> EXTRA_PUBLIC_PATHS = List.of(
-            "/api/biometric/process-fingerprint",
+            "/api/appointments/empreinte",
+            "/api/appointments/empreinte/**",
             "/v3/api-docs",
             "/swagger-ui",
             "/swagger-ui.html"
@@ -57,40 +58,42 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
+            System.out.println("🔍 Requête interceptée : " + path+"c'est passe");
+
             return;
         }
 
-        String authorization = request.getHeader("Authorization");
+        String authorizationHeader = request.getHeader("Authorization");
 
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.getWriter().write("Accès interdit : Token manquant ou mal formé");
             response.getWriter().flush();
             return;
         }
 
+        String token = authorizationHeader.substring(7);
+
         try {
-            String token = authorization.substring(7);
-            processToken(token);
+            authenticateWithToken(token);
             filterChain.doFilter(request, response);
         } catch (TokenInvalideException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write(e.getMessage());
+            response.getWriter().write("Token invalide : " + e.getMessage());
             response.getWriter().flush();
         }
     }
 
-    private void processToken(String token) {
+    private void authenticateWithToken(String token) {
         String username = jwtService.extractUsername(token);
-        Jwt tokenDansLaBDD = jwtService.tokenByValue(token);
-        boolean isTokenExpired = jwtService.isTokenExpired(token);
+        Jwt tokenEnBase = jwtService.tokenByValue(token);
 
-        if (token == null ||
-                username == null ||
-                tokenDansLaBDD == null ||
-                isTokenExpired ||
-                !tokenDansLaBDD.getUtilisateur().getEmail().equals(username)) {
+        if (username == null || tokenEnBase == null || jwtService.isTokenExpired(token)) {
             throw new TokenInvalideException("Token invalide ou expiré");
+        }
+
+        if (!username.equals(tokenEnBase.getUtilisateur().getEmail())) {
+            throw new TokenInvalideException("Token ne correspond pas à l'utilisateur");
         }
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -102,23 +105,18 @@ public class JwtFilter extends OncePerRequestFilter {
 
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
     }
 
     private boolean isPublicPath(String path) {
-        // 🔍 Chemins définis dans le fichier properties
-        boolean fromProperties = publicPaths.stream().anyMatch(pattern -> {
+        return publicPaths.stream().anyMatch(pattern -> {
             if (pattern.endsWith("/**")) {
-                String basePath = pattern.substring(0, pattern.length() - 3);
-                return path.startsWith(basePath);
+                return path.startsWith(pattern.substring(0, pattern.length() - 3));
+            } else {
+                return path.equals(pattern);
             }
-            return path.equals(pattern);
-        });
-
-        // 🔍 Chemins ajoutés en dur
-        boolean fromExtra = EXTRA_PUBLIC_PATHS.stream().anyMatch(path::startsWith);
-
-        return fromProperties || fromExtra;
+        }) || EXTRA_PUBLIC_PATHS.stream().anyMatch(path::startsWith);
     }
 }
